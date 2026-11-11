@@ -1,88 +1,86 @@
-# Queen’s Domain COOP
+# Queen’s Domain COOP Native DLL Edition
 
-**English** | [简体中文](README.zh-CN.md)
+[简体中文](QDCOOP-M131-README.zh-CN.md)
 
-Queen’s Domain COOP is a two-player co-op mod. Explore the world, fight enemies, and challenge bosses together with a friend. This preview adds Steam friends rooms alongside the existing LAN mode.
+Queen’s Domain COOP adds co-op to Queen’s Domain. Explore the world, fight enemies, and take on bosses together. **Steam friends and LAN sessions both support 2–4 players, including one host and up to three guests.** The native edition runs inside the game process as a DLL and requires no UE4SS installation.
 
-After the one-time installation described in [INSTALL.md](INSTALL.md), launch the game normally through Steam. The Multiplayer menu offers **Host game**, **Join friends**, and **Join LAN game**. Steam mode requires both players to own and run the Steam version, with the in-game overlay enabled.
+This guide covers **QD COOP M131** for the **64-bit Windows Steam release of Queen’s Domain 1.01.05 (Build 26496428)**. Everyone in the session should install the same native mod version.
 
-You can play on the same local network or connect through a virtual LAN tool such as **Radmin VPN**.
+## Install or Upgrade
 
-## How to Play Co-op
+1. Close the game. Extract the native setup archive to its own folder and keep the directory structure intact.
+2. Run `Install-Native.cmd`. The installer looks for your Steam game folder. If prompted, select the folder containing `QueensDomain.exe`. You can upgrade an existing native installation by running the new installer.
+3. Launch the game from your Steam Library. If you previously added Steam launch options for an older mod launcher or a custom user directory, clear those options first.
+4. On the title screen, open **Multiplayer** directly below **Start Game**.
 
-**Hosting adds extra world simulation, enemy AI, and synchronization overhead. We recommend that the player with the more powerful PC hosts the game.**
+The installer temporarily disables a recognized UE4SS loader. The mod uses Chinese text when the game is set to Chinese and English for all other game languages.
 
-1. **Install on both PCs.** Use matching game and mod versions. Extract the complete mod package into the game root and run `Install.cmd` once with the game closed. Then launch normally through the original launcher or Steam. Clear any Steam launch options left over from an older mod launcher. See [installation instructions](INSTALL.md) for details.
-2. **Host a room.** Choose **Multiplayer → Host game**, keep or change the LAN room port (default `47771`), then choose a save or create a character. The room opens after entering the world. When Steam is available, it also becomes a friends room; no IP address or virtual LAN is needed for Steam joining.
-3. **Invite a friend.** Open the pause menu and choose **Invite partner**, directly below Continue, to open Steam’s invitation overlay. Select and invite your teammate yourself.
-4. **Join through Steam.** Choose **Multiplayer → Join friends** to open Steam’s friends overlay. Right-click a friend who is hosting and choose **Join Game**, or accept their invitation. Then choose your own character save. Joining from an existing game first asks you to return to the title screen; save before accepting if you want to retain current progress. Steam’s friends overlay is the standard friends list, not a mod-filtered room browser.
-5. **Join over LAN instead.** Choose **Multiplayer → Join LAN game** and enter the host’s IPv4 address and port. Different networks can still use **Radmin VPN**. Use the host’s LAN/Radmin IP, not your own address or `127.0.0.1`. See the [Radmin VPN guide](https://www.radmin-vpn.com/help/). Windows Firewall must allow `QDCoopBridge.exe`; LAN uses UDP `47771` by default.
+## Steam Friends
 
-Steam support is a preview pending two-account, cross-network validation. Both transport options still support **one host and one guest in total**. If Steam is unavailable, LAN remains available. Enable Steam Overlay and restart the game if the overlay buttons cannot open it.
+### Host
 
-Currently supports two players. Version 1.18.0-preview3 shares the original game saves, so keep a save backup before your first co-op session.
+1. Sign in to Steam, launch the game from your Library, and open **Multiplayer → Host Steam game**.
+2. Click **Players** to cycle through 2, 3, and 4. Choose the total number of people who will play, including yourself. Select **2** if you are playing with one friend.
+3. Select **Choose save** and load your own save using the original game’s save picker. Your Steam room opens when you enter the world.
+4. Press **Esc** and select **Invite players** below the status and inventory entry. Find your teammate in the in-game friends list and select **Invite** on their row. They can also join directly from their own in-game friends list.
 
-## Player appearance
+### Guest
 
-The Multiplayer menu includes five appearances: **Prince, Arjaot, Ippibi, Ujji, and Imba**. Use the arrows above the preview to browse, then press **Select** to equip an appearance. The button disappears for the selected model. Your selection is remembered when you reopen the menu or restart the game. Both the host and the guest can choose an appearance.
+1. Launch from your Steam Library and open **Multiplayer → Join Steam game**.
+2. Find your host and select **Join** on their row. You can also accept a Steam invitation from the host.
+3. When connected, choose your own character save using the original game’s save picker. Wait for the session to reach the selected player count and finish synchronizing.
 
-The four soldier appearances reuse the existing full-body animation system: Arjaot, Ippibi, and Ujji wear helmet 00; Imba wears the closed helmet 01. This changes the third-person appearance seen by your teammate. First-person arms, character statistics, and collision remain those of the original character.
+The in-game list shows Steam avatars, names, and online status. Friends playing Queen’s Domain appear first. If you accept an invitation to another room while playing, the game asks whether to return to the title screen. Save first if you want to keep your current progress.
+
+## LAN
+
+Players on the same local network can connect directly. Players on different networks can join a shared virtual LAN using a tool such as **Radmin VPN**.
+
+### Host
+
+1. Open **Multiplayer → Host LAN game**.
+2. Confirm the **Room port**. The default is **UDP `47771`**, and you can enter any port from `1024` to `65535`.
+3. Set the total number of players, including yourself. Select **Host game**, choose your save, and enter the world.
+4. Share **your PC’s IPv4 address and room port**. On a local network, run `ipconfig` on the host PC and look up the IPv4 address of the active Wi-Fi or Ethernet adapter. On a virtual LAN, share the host’s IPv4 address on that network.
+
+### Guest
+
+1. Open **Multiplayer → Join LAN game**.
+2. Enter the host’s IPv4 address in **Host IP address** and the matching **Port**. For example, enter `192.168.1.42` and `47771`. Use `127.0.0.1` for testing on the host PC itself.
+3. Select **Connect**, then choose your own save. Wait for the session to reach the host’s selected player count and finish synchronizing.
+
+If the connection times out, check that the host has entered the world, the address and port match, and everyone is on the same network. If Windows Firewall blocks the connection, allow the Queen’s Domain game process to receive inbound UDP on the host’s network profile and room port.
 
 ## Co-op and Progression
 
-The host’s world determines shared progression, including mechanisms, doors, destructible shortcuts, boss phases, and passages unlocked after boss fights. Special boss dialogue and cutscenes are controlled by the host, as is in-game teleportation. Book-placement puzzles are operated by the host, with the results synchronized to the joining player.
-
-The joining player keeps their own character, equipment, experience, and personal pickup progress. Items placed in the original game world can be collected independently by each player. Both players can also receive their own enemy drops according to the original game’s drop rules. After saving, the guest can host with that character using the saved shared world progress and their own safe position.
-
-Version 1.18.0-preview3 uses the original game save directory for both single-player and co-op. A backup is created under `QDCoop-Direct/Backups` at startup; old isolated saves are not imported automatically. When either player saves, both players save the shared world progress and their respective character states.
+- **Connection notices.** The top center of the screen shows **Joining…**, **Joined**, **Could not join**, or **Left**. Steam notices use the player’s display name when available and their Steam ID otherwise. LAN hosts see guest seat labels. LAN guests see their own connection status and host notices.
+- **World progress.** Guests receive the host’s world state when they load in, including opened ordinary doors, broken barricades, and persistent breakables recorded in the save. Story teleports, some boss dialogue, and book-placement puzzles are handled by the host. If a guest’s existing save has already permanently removed an object that still exists for the host, the mod cannot recreate that object when the guest loads in.
+- **Characters and rewards.** Everyone keeps their own character, equipment, and personal pickup progress. The host resolves combat, including attacks from guests. Supported enemy drops follow the original drop rules on each player’s game, and received kill XP uses that player’s original XP multiplier.
+- **Place items.** Once the room is synchronized, open the details for a stackable consumable in your inventory and select **Place**. Stand where there is clear, level ground ahead so a teammate can pick it up. The action is hidden while the host is alone in the room.
+- **Saves.** Single-player and co-op use the original game’s saves. When any player triggers a normal save, the room attempts to create a shared checkpoint. After the save completes, each player’s file contains the shared world progress and their own character state. On startup, the mod backs up the original saves to `%LOCALAPPDATA%\QueensDomain\Saved\QDCoopNative\Backups` by default. Saves from a custom user directory used by an older mod installation are still in that directory.
 
 ## Downed Players and Revival
 
-When a player is downed, their teammate can face them and **hold E to revive them**. Revival progress uses the original blue charge bar. Releasing E interrupts the revival.
+Face a downed teammate and **hold Interact (E by default)** to revive them. The original blue charge bar shows progress. Releasing the button interrupts the revive. With an eligible healing item selected, a successful revive consumes one item and restores the amount of health it provides. Without one, the teammate gets up with 1 HP. If the whole party goes down, the game attempts to load the last complete shared checkpoint.
 
-- If a healing item is selected, a successful revival consumes one item and restores the amount of health provided by that item.
-- If no healing item is selected, the teammate is revived with 1 HP without consuming an item.
-- If all players are downed, the most recent complete shared save is loaded automatically, restoring the last saved progress.
+## Player Appearance
+
+The right side of the **Multiplayer** screen offers **Prince, Arjaot, Ippibi, Ujji, and Imba**. Use the arrows above the preview to browse and click **Select** below the model to confirm. The **Select** button is hidden for the current appearance. The game remembers your choice, and teammates see it on your third-person character.
 
 ## Synchronization and Animation
 
-To bring co-op to a game originally designed for single-player, the mod adds synchronization for players, enemies, and world interactions.
+The mod synchronizes third-person player actions, enemy movement and animation, health, deaths, projectiles, effects, and sounds. It plays animations locally where possible and synchronizes their state and progress. Enemies can attack the host or guests. For ordinary enemies, targeting considers distance, recent damage, and visibility. Fleeing star lizards retain their original fear behavior.
 
-**Third-Person Player Animation**
+Opening the inventory, bestiary, or Esc menu during co-op leaves the world running for teammates. The host also handles shared world logic and enemy AI, so the player with the faster PC is better suited to hosting.
 
-Using the original character, weapon, and animation assets alongside newly created and adapted animations, the mod adds a full set of third-person actions: walking, running, jumping, looking up and down, holding weapons, charging attacks, attacking, and falling into a downed pose. Different weapons retain their distinctive motions, with synchronized ranged projectiles, weapon effects, and sound effects.
+## Troubleshooting and Uninstalling
 
-Where possible, animations play locally on each machine, with action states and playback progress synchronized between players. This reduces the overhead of continuously transferring skeletal poses. Movement uses interpolation and smoothing to soften the gaps between network updates.
+- **The Steam friends list is unavailable or my Steam saves are missing.** Check that Steam is signed in to the right account, launch the game from your Library, and clear old launch options. Exit and reopen the save picker to give the game time to refresh the account’s saves.
+- **The room is open, but co-op features are still unavailable.** Check the selected total player count. A four-player room waits for the host and three guests. Select two players for a session with one friend.
+- **Remove the native edition.** Close the game and run `Uninstall-Native.cmd`. If the installer suspended a recognized UE4SS loader, this restores it.
+- **Remove only the older UE4SS edition of QD COOP.** Run `Uninstall-UE4SS-QDCoop.cmd` to remove the older scripts and mod enablement entries while keeping the native edition installed.
+- **Remove both QD COOP editions.** Run `Uninstall.cmd`. The uninstallers keep your game saves, save backups, UE4SS itself, and other mods.
 
-**Enemies and Combat**
+## Development Credits
 
-Enemy positions, orientations, animations, health, deaths, attack effects, and sounds are synchronized. Enemies can pursue and attack either player. Target selection considers distance, recent damage, and visibility, while limiting frequent target switching when players take turns attacking.
-
-Enemy presentation reuses the original animations and effects wherever possible, playing them continuously on each machine. Combat outcomes are coordinated by the host, with the joining player’s attacks contributing to the same fight.
-
-**How Enemy Aggro Works**
-
-The host evaluates co-op enemy targets using both players’ positions, recent actual damage, and visibility.
-
-- **Distance and damage both matter.** Nearby players attract more attention, while dealing more actual HP damage raises a player’s threat score. Damage is tracked over a rolling window of roughly 3 seconds and gradually loses weight. Rapid throwing-knife hits therefore gain no extra advantage merely from hit count, and an earlier burst of damage does not lock aggro indefinitely.
-- **Sight and cover matter.** Players within an approximately 120° forward cone and a clear line of sight receive a visibility bonus. Attacking from behind can also draw attention, but does not give the enemy vision through walls. When a target briefly moves behind cover, the enemy can retain roughly 1 second of memory and pursue the last visible position. Treasure lizards retain their native fleeing behavior instead of following this chase-memory rule.
-- **Damage can decisively transfer aggro.** If the other eligible, unobstructed player has dealt at least 1.5 times the current target’s recent effective damage, they take priority. Damage continues to decay over the same 3-second window and targets are reevaluated. Otherwise, score-based switching retains its usual meaningful-advantage and roughly 1.5-second hold rules. A committed attack or recovery may briefly delay a switch, for at most about 1.2 seconds, to avoid abruptly turning mid-swing.
-- **Either player can draw aggro.** A host-side proxy represents the joining player for pursuit, hit detection, and damage, allowing enemies to actually attack them. Being downed, dying, or leaving the effective range also influences target selection. Some special attacks with targets dictated by story scripts still follow their original behavior.
-
-**World Interactions**
-
-Alongside synchronizing mechanisms and world states, the mod aims to preserve the animations and sounds of doors, chests, hidden passages, and similar interactions. Synchronization also covers boss phase transitions, death resolution, barrier removal, and restoring player control after cutscenes.
-
-## Changes for Co-op
-
-During multiplayer, the inventory, bestiary, pause menu, weapon evolution, and similar features no longer pause the entire world. Other players and enemies continue to act while these interfaces are open. Some original scripted sequences still temporarily restrict the controls of the player watching them.
-
-To balance smooth gameplay with synchronization, we have moved inter-process communication to shared memory to reduce frequent file reads and writes; optimized object lookups, enemy state collection, effect updates, and animation processing; and moved many remote player actions to local animation playback. By design, local camera control and movement do not wait for network packets. The network primarily carries state, actions, and interaction results.
-
-## Current Status
-
-Currently supports **one host and one joining player**. The mod is still being improved, and complex scenes, special enemies, and network conditions may affect synchronization and performance. Both players should use the same version and back up their co-op saves before updating.
-
-## Development Assistance and Thanks
-
-**GPT ASTRA — AI development assistance.** Guided by the author’s requirements, gameplay decisions, and in-game testing feedback, GPT ASTRA contributed to co-op architecture and synchronization design, code implementation and review, third-person animation adaptation and tooling, performance analysis, troubleshooting, and documentation. The mod also benefits from players who test builds, reproduce issues, and share diagnostic logs.
+AI development assistance by **GPT6 ASTRA** and **GPT-6.1 sol**. Thanks to the players who test builds, reproduce issues, and share logs.
