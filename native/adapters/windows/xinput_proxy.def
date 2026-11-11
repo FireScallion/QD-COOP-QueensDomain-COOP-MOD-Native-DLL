@@ -1,0 +1,8 @@
+EXPORTS
+    XInputGetState=proxy_state @2
+    XInputSetState=proxy_vibration @3
+    XInputGetCapabilities=proxy_capabilities @4
+    XInputEnable=proxy_enable @5
+    XInputGetDSoundAudioDeviceGuids=proxy_audio @6
+    XInputGetBatteryInformation=proxy_battery @7
+    XInputGetKeystroke=proxy_keystroke @8
