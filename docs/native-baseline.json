@@ -1,0 +1,839 @@
+{
+  "version": "1.18.0-preview2",
+  "source": "Local delivered snapshot; all 165 source files match work/coop-skins-1.18/source",
+  "parentCommit": "e3f481e",
+  "preservedRepositoryOnlyFiles": [
+    "LICENSE"
+  ],
+  "gameInstall": "D:/steam/steamapps/common/QueensDomain",
+  "steamAppId": 1799840,
+  "installedSteamBuild": "26496428",
+  "date": "2026-11-09",
+  "files": [
+    {
+      "path": ".gitignore",
+      "sha256": "8e03dcfdacafede9a5f2da7c651a4e74719be771efaac467b79469b303fb8024",
+      "bytes": 305
+    },
+    {
+      "path": "Build-Runtime.ps1",
+      "sha256": "007ef4dfebe452397f3c4d84827576309f34f3b53c13dadd867ca20318100d87",
+      "bytes": 1354
+    },
+    {
+      "path": "CHANGELOG.txt",
+      "sha256": "36f7b4fa5c7e626a90884ba7bd0d619db7eaccd2bb91126af9b1952ca3d47a64",
+      "bytes": 3221
+    },
+    {
+      "path": "Install.cmd",
+      "sha256": "a9d7de44f51f1b3ddcbf1befbb88d96874d5f9fa4fc033071aa9139ee4a2ee4a",
+      "bytes": 115
+    },
+    {
+      "path": "INSTALL.md",
+      "sha256": "81cd7e5d33e0bcae17f86ee194194c34924d1d6995cd145bfbc1a6552eff61ea",
+      "bytes": 5890
+    },
+    {
+      "path": "README.md",
+      "sha256": "e1f92c273cc1f81a7c96a3c0a686504f4dfad7b367f20d4f2322243f39d34f6a",
+      "bytes": 10078
+    },
+    {
+      "path": "README.zh-CN.md",
+      "sha256": "cf00942e1716228adb3d83d18748d9f4bca1c5cefb512d9113dbf0d6a6f0725e",
+      "bytes": 8499
+    },
+    {
+      "path": "Uninstall.cmd",
+      "sha256": "46a5c1d6476eac015fa1b7bb9d08d794e4a6f5609b9a79b18339d868350a627d",
+      "bytes": 126
+    },
+    {
+      "path": "docs/BUILD.md",
+      "sha256": "ef6b2bc8d15177e18fe8799791f039925a97219cb35c9505d6bbd2e20339a0f0",
+      "bytes": 3572
+    },
+    {
+      "path": "docs/IMPLEMENTATION.md",
+      "sha256": "44389be98303959f2f30a05f9d4cfe99aa5e120aa385e11af43dd746d6089688",
+      "bytes": 8812
+    },
+    {
+      "path": "docs/SKINS.md",
+      "sha256": "17c4231616076d6ffdf50a516e55628cc36932a0e9831c37783e12e07f3f9800",
+      "bytes": 5698
+    },
+    {
+      "path": "docs/STEAM.md",
+      "sha256": "2e97d772b6bd12bf3f37b23a850aa5abe17dd2d037d31ee4f73254c623ccad40",
+      "bytes": 3816
+    },
+    {
+      "path": "QDCoop-Direct/Install-Native.ps1",
+      "sha256": "e92f0536a97dcf294b7f3027971bf4e52fcecb7e8dafdb926d5fe1984dce8b6b",
+      "bytes": 6012
+    },
+    {
+      "path": "QDCoop-Direct/THIRD-PARTY-NOTICES.txt",
+      "sha256": "b4d1f2b3e8558003ad5f97345f1c27ac4f91417ffbd8b6563db4ee5ed6eda95d",
+      "bytes": 1372
+    },
+    {
+      "path": "QDCoop-Direct/VERSION.txt",
+      "sha256": "60f3bb03d211f50e386d5cf65b6e3d199b48d5763adde36bef892333b884ae2c",
+      "bytes": 23
+    },
+    {
+      "path": "QDCoop-Direct/licenses/DOTNET-LICENSE.txt",
+      "sha256": "d7a68596ab69b06f51ca278a6545148e4269a9381c26d597c13df5d88e08cf5b",
+      "bytes": 1139
+    },
+    {
+      "path": "QDCoop-Direct/licenses/DOTNET-THIRD-PARTY-NOTICES.txt",
+      "sha256": "40686c6447a7d5b5d3693068e4571b5f483d7ed335aeee773ef662440de4c5d5",
+      "bytes": 75640
+    },
+    {
+      "path": "QDCoop-Direct/mod/Scripts/action_state.lua",
+      "sha256": "655b7a29062d172cf71cafd786ace27f0f1f3e19c627c10645000e8b1430900d",
+      "bytes": 1365
+    },
+    {
+      "path": "QDCoop-Direct/mod/Scripts/async_ipc.lua",
+      "sha256": "8256f673ab0c220f0749f0e5e54c89189a5a75738247711a61c8f0db24e0834e",
+      "bytes": 3552
+    },
+    {
+      "path": "QDCoop-Direct/mod/Scripts/audio_catalog.lua",
+      "sha256": "1defda9ebc5fae9d90f661627092904b8f227ea1ccd0b279de0acd23a5c16399",
+      "bytes": 413802
+    },
+    {
+      "path": "QDCoop-Direct/mod/Scripts/audio_protocol.lua",
+      "sha256": "6553a99d7c6a39ee58aa5509f5e216cd26ceb5c92fcfba2af3e11835d3c6fd06",
+      "bytes": 2370
+    },
+    {
+      "path": "QDCoop-Direct/mod/Scripts/audio_resources.lua",
+      "sha256": "50c1a23472690683ad38e318fc6d8225ba015610c7a0f4a0b93a776fc7b628fa",
+      "bytes": 1307
+    },
+    {
+      "path": "QDCoop-Direct/mod/Scripts/audio.lua",
+      "sha256": "28b0f8eee69833e8eb5073acf0305da884893309ad6ea97d4b27490759b2cff2",
+      "bytes": 16508
+    },
+    {
+      "path": "QDCoop-Direct/mod/Scripts/body_animation.lua",
+      "sha256": "f4bea33e4726a70e1da10e8a6894115d4515437c238f7a603d400c3f0340983e",
+      "bytes": 8405
+    },
+    {
+      "path": "QDCoop-Direct/mod/Scripts/body_catalog.lua",
+      "sha256": "3db2c1b84e45e02a0ecfc3d5c62016bf15e2fd38632205dbaadeb87954533ee1",
+      "bytes": 82911
+    },
+    {
+      "path": "QDCoop-Direct/mod/Scripts/body_legacy.lua",
+      "sha256": "28aa5154252831e8cb7bd2c65a9dfa7e3d2364135d7d90f21729a1c880841347",
+      "bytes": 8924
+    },
+    {
+      "path": "QDCoop-Direct/mod/Scripts/body_native.lua",
+      "sha256": "b51a968a28431636d710a3b2d83efb9309ce3e18b208398ccbe4af771e7122bc",
+      "bytes": 9335
+    },
+    {
+      "path": "QDCoop-Direct/mod/Scripts/body_router.lua",
+      "sha256": "8016a55849a4f583972e78aa7ab78e1ca0b3e41af7bda3a42e8a34c12b331e41",
+      "bytes": 2763
+    },
+    {
+      "path": "QDCoop-Direct/mod/Scripts/body_source.lua",
+      "sha256": "11f640c7525189b01050cf8d3376c5aeae1e0dfb5a85b4d8c5ea4040c2b9c2d7",
+      "bytes": 3544
+    },
+    {
+      "path": "QDCoop-Direct/mod/Scripts/body_transport.lua",
+      "sha256": "4cd526af1687288c92dc46198c4ba8e8506c786e159620e925752e634e5efa07",
+      "bytes": 1263
+    },
+    {
+      "path": "QDCoop-Direct/mod/Scripts/boss_healthbar.lua",
+      "sha256": "4c8b667315caa7bc0a9f420a6a74a42efdcbf438f99c887a6f0699dde87f12b7",
+      "bytes": 4405
+    },
+    {
+      "path": "QDCoop-Direct/mod/Scripts/boss_lifecycle.lua",
+      "sha256": "5f06ca3b0796763a3298ba53d8811d8e70a563a60499c70f1f11b23a7efc8454",
+      "bytes": 5034
+    },
+    {
+      "path": "QDCoop-Direct/mod/Scripts/checkpoint.lua",
+      "sha256": "e3c2205eaa09817a9e2b71340ae33a0846a5aaef8e6078f1c72fccd2ab877a5b",
+      "bytes": 11766
+    },
+    {
+      "path": "QDCoop-Direct/mod/Scripts/cutscene_sync.lua",
+      "sha256": "6afa5fe5b6157b0b5f1f6ce481652181eefe3b9e92a9838599bad1be3befd01f",
+      "bytes": 19533
+    },
+    {
+      "path": "QDCoop-Direct/mod/Scripts/damage_codec.lua",
+      "sha256": "dec2856d38cc869933b87d04746f23f515276cbe75e62135dc178a3b63bb9296",
+      "bytes": 1536
+    },
+    {
+      "path": "QDCoop-Direct/mod/Scripts/damage_protocol.lua",
+      "sha256": "830e784be1497f94caee5aed5fa46369a837c08a4891eabda72a83bbbbaa3ee6",
+      "bytes": 1449
+    },
+    {
+      "path": "QDCoop-Direct/mod/Scripts/downed_pose.lua",
+      "sha256": "ab18fdee2dfd53655e35d40e905fcfcbf09545c5f3287a2fab7e662bcc47b5e6",
+      "bytes": 2295
+    },
+    {
+      "path": "QDCoop-Direct/mod/Scripts/effect_admission.lua",
+      "sha256": "5867ffd1c41c58457c8a9a0e3e0982deab41bf2556823686721096836364173d",
+      "bytes": 1612
+    },
+    {
+      "path": "QDCoop-Direct/mod/Scripts/effect_catalog.lua",
+      "sha256": "19c2c2be0d62a796e5364a10839b9035bf99d44f96a40c58677d7b2a53a25baa",
+      "bytes": 108806
+    },
+    {
+      "path": "QDCoop-Direct/mod/Scripts/effect_protocol.lua",
+      "sha256": "86868996d6f0ff039949b571b067fa0806b106d7f44f4ed923c55eff279a44fd",
+      "bytes": 5618
+    },
+    {
+      "path": "QDCoop-Direct/mod/Scripts/effect_timeline.lua",
+      "sha256": "2b930c4ba1dc49ca90df0dc4b98d652e134a815ef652662a1dc533e547379306",
+      "bytes": 2077
+    },
+    {
+      "path": "QDCoop-Direct/mod/Scripts/effects.lua",
+      "sha256": "6719804b9ad9af035263b542de495a2a4996a1f51e690e421f7bdaeb4d14d1b0",
+      "bytes": 39402
+    },
+    {
+      "path": "QDCoop-Direct/mod/Scripts/encounter_gates.lua",
+      "sha256": "b2d39cd3884e23d0cf23ac3fc364b88909186d0c7673a1b969afaba29b4d53f3",
+      "bytes": 4305
+    },
+    {
+      "path": "QDCoop-Direct/mod/Scripts/encounter_native.lua",
+      "sha256": "e8faca02bd81bf9a2ea771fb864052cf3637273da382b2b30857d19b4b2f9875",
+      "bytes": 2142
+    },
+    {
+      "path": "QDCoop-Direct/mod/Scripts/enemies.lua",
+      "sha256": "f57bc4eba9041e49e5b085ea4019bfbbbf785f9e1b66a48e8eb2ebfea978b2e5",
+      "bytes": 35432
+    },
+    {
+      "path": "QDCoop-Direct/mod/Scripts/enemy_anim_visibility.lua",
+      "sha256": "3ea317893165ca7aa307d2d347742806494c8e63e0e44acfb5092d5e967ef990",
+      "bytes": 7505
+    },
+    {
+      "path": "QDCoop-Direct/mod/Scripts/enemy_animation_catalog.lua",
+      "sha256": "7e14ae6682d51b85bea90256597542551f238722b5a28faa4a5c842345d2303c",
+      "bytes": 320591
+    },
+    {
+      "path": "QDCoop-Direct/mod/Scripts/enemy_animation.lua",
+      "sha256": "ccab212318dba3c36f8b7c61caa173b8e34ca7d59dd7d8df8bae6340332625cc",
+      "bytes": 5069
+    },
+    {
+      "path": "QDCoop-Direct/mod/Scripts/enemy_cadence.lua",
+      "sha256": "7851ad9cfc28bfdfc0cda1b11d57a2d2f735947f304df300b8b50c06a215942b",
+      "bytes": 488
+    },
+    {
+      "path": "QDCoop-Direct/mod/Scripts/enemy_capture.lua",
+      "sha256": "40356accac157177f7f7f8bd7d760ad6646e9ffbba524065ef4932cbeafdf122",
+      "bytes": 5245
+    },
+    {
+      "path": "QDCoop-Direct/mod/Scripts/enemy_catalog.lua",
+      "sha256": "8ae5902a5e2e567caa9ba6766ba902ea3a3805f224448b2c5402f457c9564d35",
+      "bytes": 94597
+    },
+    {
+      "path": "QDCoop-Direct/mod/Scripts/enemy_effect_catalog.lua",
+      "sha256": "fd8adc320644c708929b42c64eb6781d1b4aa802a02fa5cc356a37f38b13c351",
+      "bytes": 268446
+    },
+    {
+      "path": "QDCoop-Direct/mod/Scripts/enemy_healthbar.lua",
+      "sha256": "5ef6e362c25dc9896aa8122492ff287386b6f55e8e6509b3b8889160c8acf6e4",
+      "bytes": 1946
+    },
+    {
+      "path": "QDCoop-Direct/mod/Scripts/enemy_interest.lua",
+      "sha256": "9bb2579668fffdca6870890a0c47843ef6939c81c66a32eccf72cc9199aba1d4",
+      "bytes": 649
+    },
+    {
+      "path": "QDCoop-Direct/mod/Scripts/enemy_known.lua",
+      "sha256": "6671e5512e6109595dac4d7b39af004af447ab6d57fa322aed66e5870232d658",
+      "bytes": 2555
+    },
+    {
+      "path": "QDCoop-Direct/mod/Scripts/enemy_montage_clock.lua",
+      "sha256": "0955e72b2181449ee735a4269b6ce3d91232afa1bc79660ec6ea167db924e5cd",
+      "bytes": 1610
+    },
+    {
+      "path": "QDCoop-Direct/mod/Scripts/enemy_placement.lua",
+      "sha256": "7f2d12b685de105861b7987155b3eb9287d912b6bf0ed4ddc7f7a7da6419de53",
+      "bytes": 1924
+    },
+    {
+      "path": "QDCoop-Direct/mod/Scripts/enemy_present_profile.lua",
+      "sha256": "d23059d2d3d609191453e5beaab309e1cf3735877f718aa66a260f78f7ce305a",
+      "bytes": 2980
+    },
+    {
+      "path": "QDCoop-Direct/mod/Scripts/enemy_present_schedule.lua",
+      "sha256": "e70ac2c8ce65dde9cd35027c4971e46c30ec5427e92dd3b7a5aa9dde3cb81ddc",
+      "bytes": 1059
+    },
+    {
+      "path": "QDCoop-Direct/mod/Scripts/enemy_protocol.lua",
+      "sha256": "2cc15ac287c6df60ccf1c3b7a14f36f7ea4be475ba4cff4ffb499d36ee0a3ba1",
+      "bytes": 2598
+    },
+    {
+      "path": "QDCoop-Direct/mod/Scripts/enemy_quiescence.lua",
+      "sha256": "56ad12606598e42be8784e6c34adb801bf4a32b23fea06ea3f6f134c9c35c961",
+      "bytes": 899
+    },
+    {
+      "path": "QDCoop-Direct/mod/Scripts/enemy_rest.lua",
+      "sha256": "524cbdfca71da6cf1048716f32ce9eae29bb4982f314740329efb90c35c43b61",
+      "bytes": 5210
+    },
+    {
+      "path": "QDCoop-Direct/mod/Scripts/enemy_rewards.lua",
+      "sha256": "57908c3b68f55f6d19017b00fa8bce9c9295467ac9b2a54cfc4b262cf2d11065",
+      "bytes": 8215
+    },
+    {
+      "path": "QDCoop-Direct/mod/Scripts/enemy_timeline.lua",
+      "sha256": "be1f4018f6bd37693b1939116d9b30126985217b7e6545f2d3b595366b863fea",
+      "bytes": 4959
+    },
+    {
+      "path": "QDCoop-Direct/mod/Scripts/event_counts.lua",
+      "sha256": "dbe028c75f8e4f58da37ce243bebd32677c89e3ca4ac9f8fd3fe112097254b5c",
+      "bytes": 1013
+    },
+    {
+      "path": "QDCoop-Direct/mod/Scripts/event_mailbox.lua",
+      "sha256": "b4c8c0195efcd991f88713d02aa855b9aa09ee76fa337d0912d5e1ae91a5846e",
+      "bytes": 3585
+    },
+    {
+      "path": "QDCoop-Direct/mod/Scripts/fast_lookup.lua",
+      "sha256": "2ceaf956f8904b120c7b03704fa20928b2f6f0fc8694e3342e7af497540ad1f2",
+      "bytes": 1248
+    },
+    {
+      "path": "QDCoop-Direct/mod/Scripts/frame_cost.lua",
+      "sha256": "0fdca4fe609087f117878d6bb8d4de4ae7adf2d4a68325e89af26ee175b23c46",
+      "bytes": 6310
+    },
+    {
+      "path": "QDCoop-Direct/mod/Scripts/gc_policy.lua",
+      "sha256": "494e9f94a06aae6909f18ac90a1e475d703116937c82f5eae16d9815fecb9da1",
+      "bytes": 618
+    },
+    {
+      "path": "QDCoop-Direct/mod/Scripts/hook_trace.lua",
+      "sha256": "ec039027bbe1491d8809025ee0ba800a62e151e17417462293ac8155a15d23c8",
+      "bytes": 3150
+    },
+    {
+      "path": "QDCoop-Direct/mod/Scripts/item_records.lua",
+      "sha256": "706ee9fc970fdeccd09156da41699a09ef3d76504d7f0aa3b9cd25b713c15438",
+      "bytes": 2090
+    },
+    {
+      "path": "QDCoop-Direct/mod/Scripts/item_visuals.lua",
+      "sha256": "dd8e68bd72e6a913b56a25310b7472aacd28d7ac25425285e74022fb4848fa8f",
+      "bytes": 3111
+    },
+    {
+      "path": "QDCoop-Direct/mod/Scripts/items.lua",
+      "sha256": "9d09746e010e1cf5e7514099c285fa27e6d0c47e1605fecf25854d626050b5ba",
+      "bytes": 15168
+    },
+    {
+      "path": "QDCoop-Direct/mod/Scripts/join_preferences.lua",
+      "sha256": "edeccfd5167d4f3e88d74b36a92c6783f8cbda77bb95a9c4cb4163024f0cb887",
+      "bytes": 610
+    },
+    {
+      "path": "QDCoop-Direct/mod/Scripts/localization.lua",
+      "sha256": "5f5512bf033c3c9c1a37ae8c6cce929708d9646886e1dd4751d030b0f3779505",
+      "bytes": 4072
+    },
+    {
+      "path": "QDCoop-Direct/mod/Scripts/locomotion.lua",
+      "sha256": "8e9e4ef07af5614c58a842b6bbceeb3e3673dc03791dbb0cf2aee4bb8ea1c116",
+      "bytes": 1863
+    },
+    {
+      "path": "QDCoop-Direct/mod/Scripts/lookup_profile.lua",
+      "sha256": "13e8afde843423b2a9dfc2fc730059f207e3f5d9531c6afe9b0d34930cd4f1b1",
+      "bytes": 1975
+    },
+    {
+      "path": "QDCoop-Direct/mod/Scripts/main.lua",
+      "sha256": "88cdec05fa6025f5a0582cbe6c6d1f6aa5688e0107cc458a9b5938285d51146a",
+      "bytes": 1462
+    },
+    {
+      "path": "QDCoop-Direct/mod/Scripts/menu.lua",
+      "sha256": "1d008663a3794561a73913f99a3b3b8d170696abea017d30819242fa452e65eb",
+      "bytes": 16047
+    },
+    {
+      "path": "QDCoop-Direct/mod/Scripts/motion_rig.lua",
+      "sha256": "c36049f42c72c475b302930029e14025a1f95efd320dac61bfd47511c078d8df",
+      "bytes": 2848
+    },
+    {
+      "path": "QDCoop-Direct/mod/Scripts/Native-Session.ps1",
+      "sha256": "0252fe6a8ee6235ff6d2987309ccd851989b73d5e028bb11f0e6d970dc07fb0b",
+      "bytes": 9984
+    },
+    {
+      "path": "QDCoop-Direct/mod/Scripts/no_pause.lua",
+      "sha256": "b60546f16072538fa72305913850cc6c36176f3698911164944f449884b8909f",
+      "bytes": 2741
+    },
+    {
+      "path": "QDCoop-Direct/mod/Scripts/object_refs.lua",
+      "sha256": "56579aa3f022b3af465130b09700ff8577412b0fcb60f4beb61d26b88f679a89",
+      "bytes": 2251
+    },
+    {
+      "path": "QDCoop-Direct/mod/Scripts/object_scope.lua",
+      "sha256": "78f87ecff473818a1e0576be10a1564ea0b919d37b3252094ed1db61760834e5",
+      "bytes": 2401
+    },
+    {
+      "path": "QDCoop-Direct/mod/Scripts/personal_progress_names.lua",
+      "sha256": "76098c0cd9eb968c2c544fd5a4d4340197cfc299d3ebf9167a8f53700602e17f",
+      "bytes": 945
+    },
+    {
+      "path": "QDCoop-Direct/mod/Scripts/pose_batch.lua",
+      "sha256": "1862600ee0113829969b083ab21cf3fcdac08246a826d6afe36d68ea5e994145",
+      "bytes": 2225
+    },
+    {
+      "path": "QDCoop-Direct/mod/Scripts/pose_builder.lua",
+      "sha256": "9c53fd01eb117c0be0be5664ee63d3098c89f5b29b0eb99ca030fc9d8b731cd8",
+      "bytes": 1294
+    },
+    {
+      "path": "QDCoop-Direct/mod/Scripts/pose_commit.lua",
+      "sha256": "38b8b69f90a238e305cdd5e0a67086e88faa94637cc5310833f95096ab4775a4",
+      "bytes": 618
+    },
+    {
+      "path": "QDCoop-Direct/mod/Scripts/pose_math.lua",
+      "sha256": "1bc1e5da666bf5ec52327f4e316a36f0f840ad76feffa31df04fd8dcaaf50d8a",
+      "bytes": 1900
+    },
+    {
+      "path": "QDCoop-Direct/mod/Scripts/pose_transport.lua",
+      "sha256": "74132d72edd59d6f3eff167e2258cb79780ad6e8a0518220163b7f4ae7a6589a",
+      "bytes": 1462
+    },
+    {
+      "path": "QDCoop-Direct/mod/Scripts/protocol.lua",
+      "sha256": "febd3d299ca5d04fc6583e425478d6063345f3915415d552a511fb453af8b1c8",
+      "bytes": 6801
+    },
+    {
+      "path": "QDCoop-Direct/mod/Scripts/reconcile_queue.lua",
+      "sha256": "a9aabeb2b2580fa410b422243c914010f9de78f639c25f5513423faf87b927e2",
+      "bytes": 1770
+    },
+    {
+      "path": "QDCoop-Direct/mod/Scripts/replay_scope.lua",
+      "sha256": "20226c8f4e512350f37ef1b02c105f5bd5d82ace9947b7108e60ec8744d33f06",
+      "bytes": 347
+    },
+    {
+      "path": "QDCoop-Direct/mod/Scripts/rescue_persistence.lua",
+      "sha256": "93927a9980c3d37f4d9556a53ce04b068f507b66319457b923b134b3a632dfaa",
+      "bytes": 7119
+    },
+    {
+      "path": "QDCoop-Direct/mod/Scripts/rescue_store.lua",
+      "sha256": "114540727c88fba8637de9c4fa7cca9f1ba88f46bf36952fbdd2af08d5370e4c",
+      "bytes": 3396
+    },
+    {
+      "path": "QDCoop-Direct/mod/Scripts/rescue_transactions.lua",
+      "sha256": "ab70825460402748f9e5bcfc99c9e27d83a93348ff12f5820bb025ab611c83cd",
+      "bytes": 6560
+    },
+    {
+      "path": "QDCoop-Direct/mod/Scripts/rescue.lua",
+      "sha256": "f315fc1741212a8241d98953f70241aaa914972c711db5af3a7ce2f883bfc0dc",
+      "bytes": 21503
+    },
+    {
+      "path": "QDCoop-Direct/mod/Scripts/runtime_guard.lua",
+      "sha256": "937b487dd6cb0ad51406cea1e558962af4dffce44554c91dbfedce2aab2458e8",
+      "bytes": 880
+    },
+    {
+      "path": "QDCoop-Direct/mod/Scripts/runtime_main.lua",
+      "sha256": "df9e77cede4685d5610e20571332c49949d206d1d98964722dad0077ffcc0d5c",
+      "bytes": 28293
+    },
+    {
+      "path": "QDCoop-Direct/mod/Scripts/skin_catalog.lua",
+      "sha256": "004ecd89b04023dcbe64c10c2379899b2b326a20597ebbaf7129ac59e55147e0",
+      "bytes": 876
+    },
+    {
+      "path": "QDCoop-Direct/mod/Scripts/skin_menu.lua",
+      "sha256": "5201fb8b72ed7458d21ea5d956b9450570dfe726904b92aed8e2dc70b1d8ace5",
+      "bytes": 2758
+    },
+    {
+      "path": "QDCoop-Direct/mod/Scripts/skin_selection.lua",
+      "sha256": "c9ff7220e01f6ab04b98cf94622853830e2422ff741be304123ef364b96c2dbb",
+      "bytes": 1226
+    },
+    {
+      "path": "QDCoop-Direct/mod/Scripts/skin_visual.lua",
+      "sha256": "623080ec274e1708acab66930f7de212927f8d7daff491b1e1f2ab8b8e317697",
+      "bytes": 1283
+    },
+    {
+      "path": "QDCoop-Direct/mod/Scripts/smoothing.lua",
+      "sha256": "88d3f959da10e50c252ca02438ac48afc7460b411b83cb79a41108c375b905f2",
+      "bytes": 6629
+    },
+    {
+      "path": "QDCoop-Direct/mod/Scripts/socket_batch.lua",
+      "sha256": "eca75cac2c32042c65d70d2a797e3c2c9c0f80f4b2f2102351a6ae746828b40f",
+      "bytes": 2190
+    },
+    {
+      "path": "QDCoop-Direct/mod/Scripts/spear_rig.lua",
+      "sha256": "3e6933df0526a92dff6b8a70cda6eb27b4b8b619903126ca02e8d72cf1111336",
+      "bytes": 27219
+    },
+    {
+      "path": "QDCoop-Direct/mod/Scripts/spear.lua",
+      "sha256": "f3e03ae0937f126b435434644da0575d065da6ebb4bfcdad82a547e8bb68e810",
+      "bytes": 4755
+    },
+    {
+      "path": "QDCoop-Direct/mod/Scripts/steam_menu.lua",
+      "sha256": "a7d0faf4829277eb315e4df85bd11c81317f4085da966682ccd437b48b88ccfd",
+      "bytes": 6878
+    },
+    {
+      "path": "QDCoop-Direct/mod/Scripts/threat_policy.lua",
+      "sha256": "9dc85cad52bc74e8d43c503d24d7f381b101a91a34cfe964a3ed2b9568ae6245",
+      "bytes": 2457
+    },
+    {
+      "path": "QDCoop-Direct/mod/Scripts/threat_runtime.lua",
+      "sha256": "9c48854233923a19b060d058bf6ec275c375e6433f9f40e2fff525abe6c7e579",
+      "bytes": 16550
+    },
+    {
+      "path": "QDCoop-Direct/mod/Scripts/weak_validation.lua",
+      "sha256": "f974bfb15e0e76d9ed88938e85d75ad2d7475dc7a69f02652f5a690506d63445",
+      "bytes": 1682
+    },
+    {
+      "path": "QDCoop-Direct/mod/Scripts/weapon_catalog.lua",
+      "sha256": "9f5b1c6c0639721972ab935f45117a183b82977ba121c790c1a1506216552cb4",
+      "bytes": 57884
+    },
+    {
+      "path": "QDCoop-Direct/mod/Scripts/weapon_visuals.lua",
+      "sha256": "ca9ee477b23193b090fb83de0fa0d6463ff9f90e7a07a975a7baa87ff7a456d8",
+      "bytes": 7538
+    },
+    {
+      "path": "QDCoop-Direct/mod/Scripts/world_delta.lua",
+      "sha256": "7472c731fc7d82e8c2badd225a4153bd2951b277a2567172a6a34c287abd7e41",
+      "bytes": 3104
+    },
+    {
+      "path": "QDCoop-Direct/mod/Scripts/world_elevators.lua",
+      "sha256": "36e8874e38b374fc3017c34e3c855c72cb4b17fe5d85b35c63728c5e2d32021f",
+      "bytes": 2266
+    },
+    {
+      "path": "QDCoop-Direct/mod/Scripts/world_interaction_presentation.lua",
+      "sha256": "bec4b6bf0901327cfd482d25b108a04848521d0cc9c5994850006797e66ab836",
+      "bytes": 2102
+    },
+    {
+      "path": "QDCoop-Direct/mod/Scripts/world_library_books.lua",
+      "sha256": "68aa3754d74d6b4a8006cfabb1b133f5fac9610fdd852ec1d79d0c20102534aa",
+      "bytes": 1841
+    },
+    {
+      "path": "QDCoop-Direct/mod/Scripts/world_protocol.lua",
+      "sha256": "89fc9bdaf3f5fa2b53cce29b42daf78e137b0bf053d983f137b86b385caba828",
+      "bytes": 5059
+    },
+    {
+      "path": "QDCoop-Direct/mod/Scripts/world_shrine_gates.lua",
+      "sha256": "387a5379c37da13d15caa7be4ae1a73de39749c354bae03da3e57f5543e90553",
+      "bytes": 1818
+    },
+    {
+      "path": "QDCoop-Direct/mod/Scripts/world_travel_policy.lua",
+      "sha256": "baf3725252cea8c8f1ef0f170489313b7ff7d7455a372636e4c9994c20de4ac5",
+      "bytes": 835
+    },
+    {
+      "path": "QDCoop-Direct/mod/Scripts/world.lua",
+      "sha256": "8cdd8c93424aaed1df99e3502d814a6cd53d4d57828844a2c5fdeb5b7e8270d1",
+      "bytes": 33240
+    },
+    {
+      "path": "QDCoop-Direct/runtime/ue4ss/LICENSE",
+      "sha256": "99e1d8f8b7cb68e8b2313380ae3b0c8115e39dfbc443fcf21fd67ab74ce1d57e",
+      "bytes": 1085
+    },
+    {
+      "path": "QDCoop-Direct/runtime/ue4ss/UE4SS-settings.ini",
+      "sha256": "ad7d5967c3ce3ac720bd8dabe2ebc46331814f2ae6c9eebf8b2b51cb7c218b73",
+      "bytes": 1842
+    },
+    {
+      "path": "QDCoop-Direct/runtime/ue4ss/Mods/shared/Types.lua",
+      "sha256": "1c36b37a787894ead32887aa4ac09601da5c569295c898755b1c0f5f1060ccb3",
+      "bytes": 57398
+    },
+    {
+      "path": "QDCoop-Direct/runtime/ue4ss/Mods/shared/UEHelpers/UEHelpers.lua",
+      "sha256": "7476f02eef0c87bfeab169f2ffe2e704363faeaae4bf9f1bda574b1e34f4a0e9",
+      "bytes": 10237
+    },
+    {
+      "path": "QDCoop-Direct/source/AsyncIPC/mailbox.h",
+      "sha256": "7eeed11c5677c954032a73232adba002e32aa045f21a833d065ed7235977d35f",
+      "bytes": 6384
+    },
+    {
+      "path": "QDCoop-Direct/source/AsyncIPC/qdipc.c",
+      "sha256": "b6100c4d7fad2bd55492c9941299606fc80caa264f1692c22223e75cf1cb9232",
+      "bytes": 15313
+    },
+    {
+      "path": "QDCoop-Direct/source/Bootstrap/qdboot.c",
+      "sha256": "2b57ddba7399dc18b9022d878739241b2a3836736af1fdb8d7538286924c1de8",
+      "bytes": 2935
+    },
+    {
+      "path": "QDCoop-Direct/source/Bridge/Bridge.csproj",
+      "sha256": "b1c67170a61c419f8271347ce3f99f2885e56cd5c25f6aec0f3218c9fa11e98c",
+      "bytes": 283
+    },
+    {
+      "path": "QDCoop-Direct/source/Bridge/EnemySendCache.cs",
+      "sha256": "71f77f117f054f4adcf05ee9e8a56f5ccb4f5f8e7cdb03957adbfa0ff5166886",
+      "bytes": 1161
+    },
+    {
+      "path": "QDCoop-Direct/source/Bridge/EventJournal.cs",
+      "sha256": "917c960eef47d7c5fdb0656e80cbd88fb9a41c1301a49ff083d0c5dfabbf65f3",
+      "bytes": 1567
+    },
+    {
+      "path": "QDCoop-Direct/source/Bridge/MemoryMailbox.cs",
+      "sha256": "1eeb91c7532679da744340e5323fed3ccb7db9945752a531c944de994b06b7e8",
+      "bytes": 6192
+    },
+    {
+      "path": "QDCoop-Direct/source/Bridge/NetworkWake.cs",
+      "sha256": "7c32caee1675c4d83338ea1ee30b93352182a6d743e90291c7c051b4ac28e458",
+      "bytes": 2077
+    },
+    {
+      "path": "QDCoop-Direct/source/Bridge/Program.cs",
+      "sha256": "da99bc129c1eae772fab521eeaa0f0a3b102e09d507216cc72a75d1b73dc5a12",
+      "bytes": 15681
+    },
+    {
+      "path": "QDCoop-Direct/source/Bridge/SteamApi.cs",
+      "sha256": "2c4f2de96121db2acbe31e650e18bb234f172d29c53d1f547426e5d5083d33a4",
+      "bytes": 6974
+    },
+    {
+      "path": "QDCoop-Direct/source/Bridge/SteamService.cs",
+      "sha256": "9a0ef3789b8e34d7afd74b0a10e6e8e6ee3c6e6c85602c72e89e55731a06397c",
+      "bytes": 13992
+    },
+    {
+      "path": "QDCoop-Direct/source/Bridge/Wire.cs",
+      "sha256": "289be5b5bfdc700be4b307766625376bcd934561fb864a12d408840021d01936",
+      "bytes": 3669
+    },
+    {
+      "path": "QDCoop-Direct/source/Bridge/WorldChannel.cs",
+      "sha256": "3377efd2d14a11e1c5e96d39dfc3c1fd5f654aee16b0f03175095ccb9ffded58",
+      "bytes": 2865
+    },
+    {
+      "path": "QDCoop-Direct/source/Capture/qdcapture.c",
+      "sha256": "5ff45ca77dc37d01bd77b240303f559df401d3a28bec9517a84dc4b05695e368",
+      "bytes": 8587
+    },
+    {
+      "path": "QDCoop-Direct/source/Encounter/qdscene.c",
+      "sha256": "ec183dd656af9697d0a5ffb5b95d786ea04d44b06c717271b7fb20ed98547da5",
+      "bytes": 6890
+    },
+    {
+      "path": "QDCoop-Direct/source/Placement/qdplacement.c",
+      "sha256": "a74650aeea99e040b6c0c51c65df7074ecab89a12d9cdd88395b201585d167de",
+      "bytes": 4634
+    },
+    {
+      "path": "QDCoop-Direct/source/PoseBatch/qdpose.c",
+      "sha256": "84719a81fa9fe73b54f04b80a4cb47a9cdd6c05052f8d7d994b18ea85b63ec94",
+      "bytes": 7107
+    },
+    {
+      "path": "QDCoop-Direct/source/Render/qdread.c",
+      "sha256": "9be15aaf3cebbe3ba7387740d3c4ed39e216dbc48c003ff4f5c672cd4bc3789d",
+      "bytes": 9373
+    },
+    {
+      "path": "QDCoop-Direct/source/Steam/qdsteam.c",
+      "sha256": "9f3974b6976da9366e2f2a2998f709a2c16e1cc76827097d5c7a2eafa0e07932",
+      "bytes": 6671
+    },
+    {
+      "path": "tools/animation/bake.cjs",
+      "sha256": "afb565d9b6b513c2a476484d0ba3bb5b06731ed75fba3456c6ddc9a791e7c43c",
+      "bytes": 4916
+    },
+    {
+      "path": "tools/animation/import-all.py",
+      "sha256": "5f712aa47dddd182d9558d70ae0f1761074cda82da8525662102eae303866c2f",
+      "bytes": 327
+    },
+    {
+      "path": "tools/animation/QDAuthor/QDAuthor.uplugin",
+      "sha256": "dfb92a136d95e77e842478e0c8cae9092e1d7dbf93f97e336a1194b58df06657",
+      "bytes": 443
+    },
+    {
+      "path": "tools/animation/QDAuthor/Source/QDAuthor/QDAuthor.Build.cs",
+      "sha256": "4c23ec7bb21a65f995f07eaab410df473054fcc6e204e8e2611dabd03ce056f8",
+      "bytes": 424
+    },
+    {
+      "path": "tools/animation/QDAuthor/Source/QDAuthor/Private/QDAnimTools.cpp",
+      "sha256": "32821570be17f8dba671b90b48170e1a37ff21f8d72ff7132fcd6f0dbefa63cb",
+      "bytes": 19477
+    },
+    {
+      "path": "tools/animation/QDAuthor/Source/QDAuthor/Public/QDAnimTools.h",
+      "sha256": "bd6c70d3033ce5a9b4758ff6ca369e056a26d22092bd5668271785fa9df87811",
+      "bytes": 504
+    },
+    {
+      "path": "tools/blueprints/GuestTarget/GuestTarget.csproj",
+      "sha256": "33d6bdf453823148db86a157d1d3a628b4a68c0ca3619c3dd67979bb1c1af6d8",
+      "bytes": 262
+    },
+    {
+      "path": "tools/blueprints/GuestTarget/pack.cjs",
+      "sha256": "0b8d96f2a52db44332968dc9c3bf0713c31031883108aeeef068d13387360bae",
+      "bytes": 1130
+    },
+    {
+      "path": "tools/blueprints/GuestTarget/Program.cs",
+      "sha256": "fd5339b1b212d171b5182b4ee7eb94ff8d1197f21b9c88c397d24c8ade47cb0c",
+      "bytes": 286
+    },
+    {
+      "path": "tools/blueprints/PlacedItem/GuestTarget.csproj",
+      "sha256": "33d6bdf453823148db86a157d1d3a628b4a68c0ca3619c3dd67979bb1c1af6d8",
+      "bytes": 262
+    },
+    {
+      "path": "tools/blueprints/PlacedItem/pack.cjs",
+      "sha256": "4c29d4420abfb8aded488a0cbacc72423b969ba3200a251e61a059494dac330a",
+      "bytes": 1127
+    },
+    {
+      "path": "tools/blueprints/PlacedItem/Program.cs",
+      "sha256": "fd5339b1b212d171b5182b4ee7eb94ff8d1197f21b9c88c397d24c8ade47cb0c",
+      "bytes": 286
+    },
+    {
+      "path": "tools/skins/bind_models.py",
+      "sha256": "b94cc3b647e789a1f3152046b3c2f8a2475ab092d137a3ac96064a7dcd255ed3",
+      "bytes": 10274
+    },
+    {
+      "path": "tools/skins/bone-map.json",
+      "sha256": "cdbbbaec5fa8961116d2b91ad066cc8c16f5a5c99ac24af902e65c8116bcb8cf",
+      "bytes": 1996
+    },
+    {
+      "path": "tools/skins/import-skins.py",
+      "sha256": "527a74b3a3c5b1f6c9a42f27ad1b49ea70896d4ca0c643b52e5f8f2b213b3de0",
+      "bytes": 4193
+    },
+    {
+      "path": "tools/skins/pack.cjs",
+      "sha256": "058ca8f80908ec0adb8d38ccaf79e87227b35e31abef8443965d591bc7775d6e",
+      "bytes": 1037
+    },
+    {
+      "path": "tools/skins/QDSkinAuthor/QDSkinAuthor.uplugin",
+      "sha256": "15405f5c892b5073357f7e13cfb1105e1486e2f103dccc037892a13515fa4848",
+      "bytes": 185
+    },
+    {
+      "path": "tools/skins/QDSkinAuthor/Config/FilterPlugin.ini",
+      "sha256": "b7776c3df4f21643b440b96bdfcfb22e111f353a1d99bc5e0d8ac95133bfa8c1",
+      "bytes": 367
+    },
+    {
+      "path": "tools/skins/QDSkinAuthor/Source/QDSkinAuthor/QDSkinAuthor.Build.cs",
+      "sha256": "9ee45ed7f8511bcb8c117ae1a4f363e54458f8e11861dfcb5eb1f7544bba382f",
+      "bytes": 313
+    },
+    {
+      "path": "tools/skins/QDSkinAuthor/Source/QDSkinAuthor/Private/QDSkinTools.cpp",
+      "sha256": "569f9f79083b6090c16c8ab74c2b15e40415da009bcccc9e9533e8d229843c88",
+      "bytes": 1845
+    },
+    {
+      "path": "tools/skins/QDSkinAuthor/Source/QDSkinAuthor/Public/QDSkinTools.h",
+      "sha256": "370dc90bf0e40a318998a16d3a17346ef0f656d103dc06f96c0de86868bdc311",
+      "bytes": 364
+    }
+  ]
+}

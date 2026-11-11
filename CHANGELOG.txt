@@ -1,0 +1,74 @@
+QD COOP 1.18.0-preview3 - Co-op progression and room recovery
+
+Guest saves retain shared world progress and the character's own safe position
+when subsequently hosting. Personal inventory, XP, dialogue and world pickups
+remain personal, including pickups in unloaded areas.
+Repair a missing personal Stone Duck after the native first-boss reward claim;
+respect an already owned duck or completed shop unlock, with a saved receipt.
+Accept native loot tables' default -1 count; stop treasure-lizard replica death
+from executing an extra independent drop. Native personal loot rolls remain.
+Preserve treasure-lizard flee targets until native fear decays.
+Aggro cone is 120 degrees; 1.5x recent damage takes priority, with existing decay
+and bounded attack commitment. No sampling-rate or player-animation changes.
+Follow the host's actual music cue through the original music controller.
+Replay lever motion/audio, dagger-button motion/sparks/audio, and gargoyle
+ignition presentation without replaying gameplay activation/reward operations.
+Release departed network peers promptly; reopen Steam joining after departure,
+retry presence publication, and recover an exited Steam helper without restarting
+the game. Existing LAN rooms remain independent of helper recovery.
+This is still the two-player UE4SS branch; the native DLL four-player branch is separate.
+
+修复客机保存共同进度后转为房主仍回到开场的问题，保留个人角色与独立拾取。
+补发已领取但客机漏收的首 Boss 石鸭；已持有或已解锁商店时不重复发放。
+修复常规掉落记录被错误丢弃，以及星蜥死亡演出额外掉落、逃跑被强制中断。
+仇恨视角调整为 120°，另一玩家达到当前目标 1.5 倍近期有效伤害时优先转移。
+修复 Boss 结束与场景变化后的音乐跟随，补充拉杆、飞刀按钮和石像鬼机关演出。
+修复离房后席位释放、Steam 加入重新开放、后台异常退出后的自动恢复。
+双方请更新到同一版本。本次测试使用隔离副本，保留原安装与存档。
+
+QD COOP 1.18.0-preview2 - Player appearances preview
+
+Added five persistent, selectable appearances to the right of the Multiplayer menu.
+Arjaot, Ippibi and Ujji use helmet 00; Imba uses closed helmet 01.
+Selection UI follows Chinese/English language selection and uses matching
+neutral arms-down portraits, with slightly opened elbows for armour clearance.
+Bound the soldier meshes offline to the existing prince skeleton. Canonicalized
+FBX bind transforms so the existing native full-body graph can drive them.
+No additional live animation driver, NPC AI, preview capture, or sampling changes.
+Cosmetic state has its own optional Y|1 tag; save-slot S semantics are unchanged.
+Original mods and saves are retained. Steam preview limitations remain unchanged.
+
+新增五种可记忆外观、多人菜单右侧预览和中英文选择按钮。
+士兵模型离线适配现有王子骨架和全身动作，修正 FBX 导入轴向差异；
+预览站姿的手肘略微外展，避免贴入盔甲。
+
+QD COOP 1.18.0-preview1 - Steam friends preview
+
+Added: Multiplayer > Host game / Join friends / Join LAN game.
+Added: host Steam friends lobby and Join Game rich presence after loading a save.
+Added: centered native-style Invite partner under Continue in the pause menu.
+Added: lobby/rich-presence callbacks and Steam startup join arguments.
+Added: original quit confirmation before switching rooms from gameplay.
+Added: background SteamNetworkingMessages datagram adapter; existing gameplay
+protocol, shared memory, animation rates and LAN connections are retained.
+Steam mode requires the Steam copy, matching versions, and Steam Overlay.
+This preview still needs two-account overlay and cross-network playtesting.
+
+新增 Steam 好友房间、好友加入与 ESC「邀请伙伴」，保留局域网入口。
+游戏中加入好友先通过原版确认流程返回主菜单，再选择个人角色存档。
+Steam 收发在后台运行，保持原有共享内存、玩法协议与动作更新频率。
+本版为预览，双账号邀请、跨网络直连/中继和覆盖界面仍需实机验证。
+QD COOP 1.17.3 — 2026-11-09
+
+Fixes
+- Preserve the host's native kill experience when an enemy targets the guest proxy. The guest receives its existing single reward, not a new additional reward.
+- Defer guest world arrival/streaming updates during native teleport; retain pending host arrival across a late first-shop callback.
+- Add XP award counters and destination details to travel diagnostics.
+
+修复
+- 怪物以客机为目标时，房主不再因仇恨代理而漏掉击杀经验。客机维持原有的一次奖励。
+- 客机原版传送未结束时，不抢先改写区域加载与位置；迟到的首次商店回调不再清除房主待完成传送。
+- 增加经验结算次数与传送目的地诊断信息。
+
+Both players must update. Close the game, extract this complete package into the game directory and run Install.cmd once. Existing saves are not adjusted. Keep QDCoop-Direct/Local and Backups when updating.
+双方都需更新。关闭游戏，将完整包覆盖到游戏目录后运行一次 Install.cmd。更新时保留 QDCoop-Direct/Local 与 Backups；不会修改已有角色的历史经验。
