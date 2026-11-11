@@ -1,0 +1,37 @@
+M12 native GameEngine Tick bridge
+
+Current Steam build26496428: GameEngine vtable RVA0x3E49C38, Tick slot86,
+cellRVA0x3E49EE8, original targetRVA0x28C4D80; Win64 void(this,float,bool).
+Observed through the actual GameEngine object, UE4SS log and game disassembly.
+The bridge verifies the running executable SHA256 and expected cell, pins both
+callback and bridge DLLs, uses an interlocked compare/exchange under temporary
+page write permission, restores page protection, and always invokes the original
+Tick with all three arguments. No instruction trampoline or UE4SS registration.
+Installation is serialized/idempotent; a conflicting callback or cell is rejected.
+Unloading a successfully installed callback is unsupported.
+
+Build-EnemyM1 now builds both DLLs with GCC. The retained VcVars64 parameter is
+unused compatibility input; MSVC is no longer required. Old UE4SS bridge source
+is historical and not built. The core still requires its cold Lua bootstrap.
+
+Actual evidence:
+- Dedicated no-UE4SS loader starts ONLY its own isolated game process and loads
+  a diagnostic DLL using this same native_tick_bridge.cpp. Local UE4SS proxy
+  temporarily renamed and restored by the lab runner; official game untouched.
+- NullRHI run:98819 observed Tick callbacks, same game thread5204,98819 successful
+  native weak validations of GameEngine,wrong_thread0,UE4SS module absent.
+- Earlier prototype NullRHI run:200408 callbacks,allvalid,noUE4SS (separate code).
+- RenderOffscreen no-UE4SS attempt installed but observed0ticks before timeout.
+  This is unresolved startup evidence, NOT successful rendered native bootstrap.
+- Test PostQuitMessage did not close those no-UE4SS processes. The owned launcher
+  terminated them at its deadline (launcherExit4); no graceful shutdown claimed.
+- Existing rendered Lua-bootstrap lab with production native bridge:27907 active
+  core callbacks,wrong_thread0,allnativeboundary states1;mapload/rebind and
+  ownership freeze/idempotence/exactrestore passed. Game exited0 via QuitGame.
+  No additional UnknownMod.EngineTick.PreHook registration appeared inUE4SSlog.
+- Full build/model/ABI suite passed. No whole-mod FPS improvement claim.
+
+Still missing: native metadata/resource lookup and gameplay bootstrap, source
+hooks and complete preview3/four-player behavior. Native tick standalone proof
+is not a UE4SS-free playable co-op mod. Investigate rendered startup before
+claiming full native boot acceptance. Test harness/evidence retained separately.

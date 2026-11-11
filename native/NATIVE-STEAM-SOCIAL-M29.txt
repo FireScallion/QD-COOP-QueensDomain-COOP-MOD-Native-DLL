@@ -1,0 +1,47 @@
+M29 — Steam social controls for the native bootstrap
+
+On the verified build the game thread registers Steam callbacks 333
+and 337 on the game's Steam pipe. The release DLL leaves Steam callback
+dispatch to the game. Idle registration needs no enemy metadata scan.
+A loaded local DWM proxy or UE4SS prevents native bootstrap attachment.
+
+The callback stores a bounded, validated lobby invitation. A consumer
+reads its ticket and explicitly accepts or declines it. Accepting during
+another room queues the M28 stop and starts joining only after cleanup.
+Lobby and rich-presence events share this path. Duplicate notifications
+for the pending invitation preserve its ticket. A stale ticket or a
+notification for the current room has no effect.
+
+  int QDNativeReadSteamSocial(qdcoop::steam_social::Status*, unsigned)
+  int QDNativeReadSteamInvitation(qdcoop::steam_social::Invitation*, unsigned)
+  int QDNativeRespondSteamInvitation(uint64_t ticket, unsigned accept)
+  int QDNativeOpenSteamFriends()
+  int QDNativeOpenSteamInvite()
+
+The overlay commands run on the game thread. The invite dialog requires
+an owned room with space and an available Steam Overlay. An accepted
+command is queued and its outcome is reported in Status.action. An
+open action records dispatch of the Steam overlay API.
+
+The production connect value is published for joinable friends rooms.
+The bootstrap periodically retries and removes its own value when
+the room stops accepting members. It preserves a competing value and
+does not clear other presence keys.
+
+Build the release with Build-EnemyM1.ps1. The separate private-station
+social probe is built from the same sources with QDCOOP_STEAM_SOCIAL_LAB.
+It uses private rooms, a non-reserved test presence key and synthetic
+invite ingress. It observes the game's Steam dispatch. The QA probe
+checks preservation, retry and clear via the real Steam API. Build
+native_boot_probe.cpp as a separate test DLL and use the isolated
+runner with QD_BOOT_SOCIAL_LAB=1 and the lab bootstrap in social-build.
+Keep the lab bootstrap and probe out of the release deployment.
+
+The isolated game called its Steam dispatcher. Separate metadata and
+self-notification attempts submitted successfully, with zero events
+observed by those test listeners. Invitation ingress was verified with
+synthetic payloads. Actual callback delivery remains open.
+
+In-game menu integration, actual remote friend invites, visible overlay
+interaction, in-place membership recovery and four-account play remain
+separate integration work.

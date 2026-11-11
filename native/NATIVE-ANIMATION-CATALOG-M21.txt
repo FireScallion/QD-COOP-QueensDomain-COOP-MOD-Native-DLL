@@ -1,0 +1,46 @@
+M21 native animation catalog
+
+tools/animation/generate-native-catalog.cjs reads the tracked preview3
+enemy_animation_catalog.lua. It emits the native profile/field names,
+montage and sequence paths, and skeleton table. It also regenerates
+animation_layout.hpp. The existing wire layout is byte-identical after
+line ending normalization. Node's --check mode verifies both headers.
+
+QDEnemyScanNativeAnimation takes a budget from 1 to 4096 object slots.
+Call from the native game thread during setup until it returns 1.
+A result of 0 means another slice is needed. A result of -1 means the
+scan or required engine metadata failed. A call after completion starts
+a refresh. The resolver identifies loaded methods and animation assets
+by full paths, validates asset class, skeleton and length, and keeps
+serial-checked weak handles. A host can also resolve an observed loaded
+asset on its first use. No global object scan runs in QDEnemyEngineTick.
+
+QDEnemyBindCatalogNativeAnimation takes entity ID and generation and
+returns the actual preview3 profile ID on success. It validates the
+live actor/mesh association, AnimInstance class and reflected fields,
+and the mesh skeleton. A client display also has to retain the bound
+owner and compatible skeleton before it receives the animation class.
+The earlier typed and Lua entry points remain available. Catalog
+bindings only apply assets validated by the native catalog.
+
+The final isolated run used Steam build 26496428. All four processes
+completed one scan, visiting 485941 to 487748 slots in 238 to 239
+slices of up to 2048 slots. The longest individual slice in that run
+was 722.5 microseconds. Each process registered 645 of the catalog's
+647 montages and 1046 of 1054 sequences. Those counts describe assets
+resolved in this world. Unloaded client assets still require loading
+or a refresh once they become available.
+
+The existing real Lizer fixture automatically bound profile 31 in
+all roles. No fixture-provided profile fields, asset registrations
+or display class writes were used. The host captured 40 animation
+snapshots. The clients applied 37, 37 and 35, played and stopped the
+actual montage once, and applied one original Kill event each. The
+delayed client observed three duplicate deaths and the host ended
+with zero pending deaths. All four processes exited normally without
+UE4SS. Role and baseline save hashes match.
+
+Single-enemy core tick p95 was 14.3 microseconds on the host and 7.9,
+5.5 and 6.0 on the clients. These figures measure the core tick in this
+controlled run. Setup scan slices are measured separately. Natural
+enemy enrollment and populated gameplay performance remain open.

@@ -1,0 +1,39 @@
+M30 — recover a Steam lobby without restarting the game
+
+QDN4-2 publishes a single qd_epoch metadata record with a serial,
+random nonce and optional locked roster. This lets guests validate the
+whole record against the actual Steam lobby owner and members. An old
+record cannot roll an authenticated client back. A locked roster stays
+fixed for the lifetime of its nonce.
+
+On a verified membership change, the network worker pauses gameplay
+packets and closes the old channels. The game thread clears owned
+replicas, hooks, bindings and queues before acknowledging the paused
+epoch. Pending reward work or a bound durable receipt blocks that reset
+and preserves its recovery state.
+
+The original host keeps the same Steam lobby and publishes a new
+record before opening seats. When the configured member count is met,
+the host locks the new roster and all connected peers authenticate
+using the new nonce. Retained guests wait for the new serial before
+resuming. A transport timeout allows one rekey attempt for an unchanged
+roster. Loss of the original lobby owner ends the room.
+
+Build-EnemyM1.ps1 runs the Steam worker against a deterministic service
+fixture. The test covers host replacement, guest rekey, the queue
+handoff, stale packets, host loss and a durable refusal. The production
+private-room smoke also checks qd_epoch by reading actual Steam lobby
+metadata.
+
+For the isolated game rekey test, compile the core with
+QDCOOP_STEAM_RECOVERY_LAB into recovery-build/QDCoopNativeM1.dll.
+Build native_world.cpp with native_tick_bridge.cpp and link bcrypt and
+ws2_32. Run native_tick_lab/run-world.ps1 from the staged lab directory
+with QD_WORLD_RECOVERY_LAB=1 under the private window-station launcher.
+The lab drives the production worker and game-thread cleanup with
+synthetic Steam peers, while real game actors remain loaded. It checks
+the same lobby, a fresh epoch and generation, preserved source actors,
+and final cleanup. Release DLLs omit the synthetic service and controls.
+
+Live multi-account Steam recovery and visible invite flows remain
+unverified. QDN4-2 Steam rooms require matching native builds.

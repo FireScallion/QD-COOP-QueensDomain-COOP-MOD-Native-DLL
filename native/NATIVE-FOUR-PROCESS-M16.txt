@@ -1,0 +1,29 @@
+M16 four-process native enemy replication
+=========================================
+
+The world lab starts one host and three real game clients on the current
+Steam executable. Each role loads slot 1 in an independent profile and
+spawns the real EnemyBase fixture used in M15. The host sends each native
+snapshot to three configured loopback ports. Three readiness markers
+gate sending. Three application confirmations gate host shutdown.
+
+Final tested build 26496428 had executable SHA256
+79CCDC6CF9E1E85512D52D2CB1C3FFA963D400BE1555051A3523C982D181D1E6.
+Game PIDs were 31384, 11068, 13872 and 8592. All module checks confirmed
+UE4SS absent. The host captured 33 snapshots and sent 99 datagrams.
+Each client received 33 and read both host HP updates, 123.25 and 118.75.
+The final actor position on all four roles was
+4486.637, -1744.465, 210.414. Frame applications were 412, 618 and 567.
+All four game and launcher exits were zero. Thread, lifetime, queue and
+socket error counters were zero. The two isolated game proxies were
+restored and the baseline saves matched their seed hashes.
+
+The first run transferred 32 snapshots to each client, but PowerShell
+did not preserve the launcher exit codes. The runner now holds a process
+handle for each live launcher. The final rerun passed the aggregate gate.
+
+Core tick p95 in microseconds was 7.0 for the host and 4.2, 3.4 and 3.6
+for the clients. These measurements cover a single fixture, one offscreen
+renderer and three NullRHI processes. The preview3 performance comparison
+and production room admission, gameplay sources, travel and rejoin remain
+pending. The production core was unchanged for this lab expansion.

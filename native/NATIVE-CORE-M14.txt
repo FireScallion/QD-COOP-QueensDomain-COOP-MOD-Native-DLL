@@ -1,0 +1,34 @@
+M14 native co-op core bootstrap
+===============================
+
+The native tick lab now loads QDCoopNativeM1.dll and drives the existing
+enemy core through its C exports. EnemyMetadata resolves the 42 input
+addresses from the engine name pool and object table in bounded game
+thread batches. Object paths identify each owner. Weak keys retain the
+owners until the existing initialize() layout checks consume the fields.
+
+QDEnemyInitializeNative verifies the executable and binds the engine
+functions directly. QDEnemyStartNative opens the existing loopback
+transport with the supplied role, port, room words and up to three peer
+ports. QDEnemyNativeStatus returns the required JSON buffer size including
+the terminator. QDEnemyStopNative requests worker shutdown and returns
+success once the worker has stopped. The caller owns the game thread,
+calls QDEnemyEngineTick on it, and retains the loaded DLL for the session.
+The Lua entry point remains available for the existing test lab. Both
+entry paths share the transport startup and failure cleanup.
+
+The rendered test used Steam build 26496428 with executable SHA256
+79CCDC6CF9E1E85512D52D2CB1C3FFA963D400BE1555051A3523C982D181D1E6.
+The private title scene ran without UE4SS. The final run found all 42
+addresses, ran 930 active core ticks on the engine thread, and used all
+four native engine bindings. The launcher and game both returned 0.
+
+The lab sent an encoded snapshot for an unbound entity and a truncated
+packet from the configured peer. The core received both and counted one
+stale snapshot and one rejected packet. A third packet from a different
+port counted as foreign. Socket errors, worker drops and wrong-thread
+calls were zero. See the native_tick_lab README for reproduction.
+
+The next integration step is world loading and real enemy registration
+through the native bootstrap. Gameplay application, four-player rooms,
+travel, rejoin, and preview3 feature parity still need validation.

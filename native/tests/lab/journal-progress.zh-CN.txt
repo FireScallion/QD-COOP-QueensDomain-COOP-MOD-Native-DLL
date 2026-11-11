@@ -1,0 +1,27 @@
+QDCOOP M5 奖励持久化组件阶段
+上一阶段原生 K/X/D 实机路径继续保留；当前阶段尚未接入生产奖励发放链，不能宣称游戏重启恢复已完成。
+
+本轮代码
+- reward_journal.hpp：绑定房间、世界、角色和存档链身份；固定格式记录、序号、CRC、完整奖励 payload；严格区分 begin / applied / saved。
+- reward_journal_windows.hpp：独占日志句柄，WriteFile + FlushFileBuffers，拒绝损坏/截断尾部，不静默删除证据；对稳定的存档文件计算 SHA-256。引擎内存生效记录不足以允许重启重放。
+- 16 个 int32 的存档内收据编码，包含完整身份、64 位应用游标和 CRC。只允许本地适配器从已加载存档取出收据；不能接受网络 ACK 作为存档证据。
+- 以存档内收据协调崩溃窗口：若日志只留下 begin，但已保存角色里的收据证明该事件完成，可补记 applied/saved；若游标落后于已记录副作用则保持隔离，不自动重抽。
+- 原生 Inbox 新增仅空闲初始化时可用的恢复游标入口；已收包、已开始或隔离队列不能用它跳过奖励。
+
+已验证
+- 独立真实 Windows 子进程分别在 begin、applied、saved 后强制结束，父进程重开文件验证恢复条件；未调用正常析构。
+- 记录字节损坏、身份串用、重复/乱序记录、截断尾部、文件独占、旧存档 SHA、不合法收据以及恢复后的重复事件拒绝。
+- SHA-256 已与 abc 标准向量核对；同长度文件修改产生不同证明，写入句柄未关闭时拒绝取得稳定证明。
+- 最新 Steam 正版隔离实例：原存档类 NamedSaveData 是 FName -> int32 表，偏移由反射得到（当前 1000）。ReadNamedData 是 16 字节参数；SaveGameToSlot 为 29 字节参数。SaveGameToMemory 未反射暴露。
+- 原生实验 helper 使用已验证的原版 GenericMap_Add 和 Conv_StringToName，写入 16 个含符号位的测试词；原版 SaveGameToSlot / LoadGameFromSlot 后，全部测试词与 XP=1234 一起恢复。文件只写到隔离 profile/Saved/SaveGames/QDNativeReceiptProbe.sav；SHA256 AAC79F2744146AEF4EB098901EF2C1F4EEFCEBE4958F97D3956D5CBFC22419A6。
+- 隔离游戏进程 PID 7116 正常退出，exitCode=0。正式游戏与存档未修改。
+
+下一步（仍未完成）
+1. 将存档内收据写入实际 K/X/D 的验证完成边界，并在任何奖励副作用前持久化 begin。
+2. 从真实角色存档产生稳定身份，接上原版同步/异步存档完成回调，协调实际落盘与收据；测试正在保存时的失败与重启。
+3. 恢复本地 Inbox 游标，并协调权威端持久化 outbox、会话恢复及换图握手。当前 host Lua backlog 和实际奖励队列仍为内存状态。
+4. 继续 preview3 全功能、真实四人架构、UE4SS 移除和最终性能验收。
+
+限制
+日志与存档内收据是本地可信适配器机制，CRC 不是网络认证。实验 helper 只用于固定 Steam EXE，不是生产注册接口；不能将假造 SaveProof 或未核验 Marker 直接传给恢复 API。
+M5 的进程终止测试证明日志组件边界，不等于真实游戏崩溃恢复已验收。

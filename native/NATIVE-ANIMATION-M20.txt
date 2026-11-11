@@ -1,0 +1,41 @@
+M20 native enemy animation
+
+The native game thread can configure the nine animation functions and
+register a profile, its typed fields and its animation assets through
+QDEnemyConfigureNativeAnimation, QDEnemyConfigureNativeAnimProfile and
+QDEnemyRegisterNativeAnimAsset. QDEnemyBindNativeAnimation checks
+entity generation, terminal state and the live AnimInstance class.
+The host samples the gameplay mesh. A client with a separate display
+binds its display mesh. The Lua G/A/T/Y controls share the configuration
+and registration logic. The wire format and catalog numbering are
+unchanged.
+
+The world lab uses the official Steam build 26496428 and separate
+isolated profiles. It resolves the loaded Default_Lizer_AnimBP (31) and
+Lizer_Stagger_Montage (354). It checks the montage and skeletal mesh
+share a skeleton. Each client assigns the source class to its own
+display mesh and verifies that the resulting instance is distinct
+from the gameplay actor's instance. Binding with the wrong generation
+is rejected before binding the active generation.
+
+The host supplies two controlled aim and Sleeping state markers and
+plays the game montage at rate 0.35. It stops the active montage after
+all three clients see advancement. Each client reads both markers
+from its actual AnimInstance, confirms the montage and rate, and sees
+playback advance and stop. In the final run, the host captured 38
+animation snapshots. The clients applied 36, 36 and 35 animation
+snapshots respectively. Each called play and stop once. No missing
+assets or rejected animation packets were reported.
+
+After the montage stop check, the host original Kill observer queues
+one enemy death. Each client applies it once and hides its display.
+One client defers consumption by 650 ms and receives three duplicates.
+The host pending queue reaches zero and restores the Kill slot.
+Each game exits normally without UE4SS. Seed and role save hashes match.
+
+The single-enemy core tick p95 was 7.0 us on the host and 7.1, 5.4
+and 5.2 us on the three clients. One client rendered offscreen. The
+rest used NullRHI. This measures the core tick only. The lab selects
+one loaded profile and one montage and uses controlled marker values
+and fixed loopback peers. Automatic profile and asset discovery,
+natural combat, travel, and representative performance remain open.

@@ -1,0 +1,61 @@
+M23 native enemy retirement and slot reuse
+
+A managed enemy slot uses generation-specific retire and retire-ACK
+packets. The decoder checks the same room and world epoch as the
+enrollment offer. The host stops sending snapshots when retirement
+starts. It keeps any pending terminal death until its peers confirm,
+and preserves the preview3 ten-second death presentation interval.
+Live retirement can start immediately. Expired or replaced live
+host actors detected by the capture or enrollment path automatically
+start retirement. Host retirement drops the binding and never calls
+DestroyActor on the original world actor.
+
+The native client supplies the reflected Actor.K2_DestroyActor
+method using QDEnemyConfigureNativeReplicaDestruction. A successful
+native replica registration and display bind transfer cleanup
+authority for those two spawned actors to their specific generation.
+The game thread hides the retiring display and checks that both
+actors are destroyed, are being destroyed, or have already expired
+before acknowledging. It tries up to four retirements per tick.
+When stopped, a native client also attempts to dispose of owned
+replicas from still-active generations. Unmanaged registrations
+retain the existing ownership release path.
+
+After cleanup the slot retains its retired generation. Duplicate
+retire packets are acknowledged again without another cleanup.
+Old offers and old state, animation and terminal packets cannot
+recreate a retired generation. The host cannot reuse a managed slot
+until all configured peers have acknowledged retirement. A new
+generation must be strictly greater than the slot's tombstone.
+Death retries target only peers with outstanding death receipts.
+
+The final four-process run used the official Steam build 26496428
+in isolated profiles with no UE4SS. The host enrolled an existing
+Lizer, synchronized two HP/animation markers and invoked the
+original Kill. It requested retirement while death was still
+pending. The first retirement marker was written 10.012 seconds
+after the death marker. One client delayed death and retirement
+consumption independently. It received three duplicate death
+packets and three duplicate retire packets. The host rejected
+reuse while retirement was in flight.
+
+After all three peers acknowledged cleanup, the host enumerated
+another existing Lizer and enrolled it in the same slot as
+generation 2. Old generation registration attempts were rejected
+on all roles. Each client confirmed both generations, saw the
+second enemy's actual HP of 50 and applied its host transform.
+The host retired the second generation alive. The second original
+host actor remained alive and valid. Each client independently
+checked both replica/display pairs were gone, with two retirement
+applications and four DestroyActor dispatches. The host recorded
+six enrollment and six retirement acknowledgments. All roles ended
+with zero active slots and exited normally. The seven test save
+hashes matched the isolated baseline.
+
+Core tick p95 was 3.2 us on host and 5.8, 4.6 and 5.8 us on clients.
+The largest of four separately timed world enumerations was
+164.2 us. The test uses controlled combat calls and fixed local
+peers. It verifies explicit death and live retirement and the slot
+reuse path. Automatic expiration, disconnect cleanup, pressure at
+the cleanup budget, and representative gameplay performance still
+need dedicated runtime evidence.

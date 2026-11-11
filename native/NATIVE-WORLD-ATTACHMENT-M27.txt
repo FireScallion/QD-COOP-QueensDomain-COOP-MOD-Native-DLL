@@ -1,0 +1,39 @@
+M27 — attach the native room to the locally controlled game world
+
+Steam build 26496428, AppID 1799840. The Shipping image hash is unchanged
+from M26. Build-EnemyM1.ps1 builds the XInput proxy, native bootstrap and
+core with the pinned game-thread bridge.
+
+The bootstrap calls QDEnemyPumpNativeWorld after the Steam room reaches
+its authenticated active phase. The core resolves the engine's GameInstance,
+validates GameplayStatics.GetPlayerPawn and Pawn.IsLocallyControlled, and
+checks the player class against the game's FS_PlayerChar parent. The
+player's level supplies the actual owning world. All long-lived game
+objects use engine weak references.
+
+Native lookup resolves the existing enumeration, replica factory, death
+and animation inputs in bounded slices. The playable world derives an
+envelope scope from its canonical map path. Enemies, animation, deaths
+and their acknowledgments use that scope on both host and guests. A
+guest retries catalog discovery in smaller slices if an offered class
+or mesh was loaded after attachment. A missing pawn suspends the pump.
+A replacement pawn in the same live world can be rebound. A new world,
+expired world or prolonged pawn loss stops the room and cleans its owned
+replicas. This stage closes on transition while room epoch rebuild and
+cross-map continuation remain pending.
+
+QDNativeReadWorldPhase reports idle, waiting for player, preparing,
+active, suspended, world changed or failed. Values are declared in
+include/qdcoop/native_world.hpp. The existing room status ABI is stable.
+The core's world_epoch and lookup/configuration fields are diagnostics.
+
+Rebuild native/tests/native_tick_lab/native_world.cpp with
+native/adapters/windows/native_tick_bridge.cpp, -shared and -lbcrypt.
+QD_WORLD_AUTOMATIC=1 runs four isolated game processes through the same
+world pump using loopback sockets. The test selects the copied save in
+each game, measures the attached pump, applies HP and transform markers,
+triggers the original Kill on one enrolled enemy, verifies guest death
+and retirement, then verifies the reused generation and cleanup.
+Use the M26 separate private-room smoke for actual Steam title lifecycle.
+These two tests cover different parts of the path. Four-account Steam
+gameplay and comparative preview3 frame-time measurements remain open.

@@ -1,0 +1,53 @@
+M34 native weapon bone poses on Steam build 26496428
+
+QDN4-6 expands the player snapshot to 480 bytes and adds a component serial
+to each equipment slot. Kind 13 is a complete local-space pose for a
+single skeletal weapon part. Its largest packet is 1184 bytes for 28
+bones. The catalog generator preserves all 300 ordered bone names and
+their mesh IDs from preview3.
+
+Each bone packet carries the room and world envelope, player slot,
+Pawn generation, body sequence, equipment slot, mesh and component
+serial. The host assigns the player slot from authenticated ingress and
+relays to the other peers. Once a Pawn generation is known, a bounded
+history accepts a companion packet one sequence ahead of its base pose.
+Presentation uses only a pose at or
+before the sampled body sequence for the matching mesh and serial.
+When a pose is unchanged, the sender refreshes it every fourth snapshot
+so a lost datagram does not hold the receiver indefinitely.
+
+On the pinned Shipping executable the game thread reads the same
+local-space bone array used by CopyPoseFromSkeletalComponent. If a
+parallel evaluation task owns the buffer, it uses Unreal's safe copy
+accessor. The executable signature, reflected class sizes, live mesh
+identity, bone indices, array size and alignment are checked. The
+receiver updates changed local transforms on the owned poseable
+component and sets the engine's transform-dirty flag once for the batch.
+This avoids the per-bone component-space reconstruction in the
+reflected setter. The stage lab reads poses back through GetSocketTransform.
+
+The equipment source includes the stock QuickDashSwordVisuals actor.
+The left-hand attachment point identifies the offhand even through
+intermediate components. Stable slots keep the right weapon and its
+pose when a left-hand part appears or disappears.
+
+Build and reproduce
+
+Run node tools/animation/generate-equipment-catalog.cjs --check and
+Build-EnemyM1.ps1. Build the same private world driver as M33. Stage
+work/m34 with the three original preview3 appearance PAKs, and run
+QD_WORLD_PLAYERS=1 QD_WORLD_PLAYER_GEAR=1 QD_WORLD_PLAYER_BONES=1
+in the private station. The host uses the real BirdFlail animation
+blueprint with two fixture-controlled Charge values and calls the
+stock ShowQuickDashSword and HideQuickDashSwrod functions. The guests
+compare all twelve actual flail bones with recent host observations
+at each setting, verify changed sequences and stable right-hand
+identity, and check the left display is destroyed independently.
+The real equip and unequip fixture can write two private challenge
+files. The runner records and restores those hashes and verifies
+all seven files. Main game installation and profile are outside the lab.
+
+This is a four-process loopback gameplay test. The separate Steam
+test covers private room startup and exit using QDN4-6. Further
+appearance UI, ground contact, rescue visuals, gameplay parity,
+multi-account verification and matched performance remain open.

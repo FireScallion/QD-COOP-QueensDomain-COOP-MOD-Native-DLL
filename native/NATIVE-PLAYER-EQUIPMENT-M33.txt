@@ -1,0 +1,50 @@
+M33 native player equipment and skins on Steam build 26496428
+
+QDN4-5 adds equipment to each player snapshot. The 464-byte packet carries
+a preview3 skin ID, the equipped weapon class ID and four presentation
+slots. Each slot carries a catalog mesh ID, hand, visibility, transform
+and up to eight material IDs. The host validates these values before
+relay. Catalog assets are loaded locally by exact path and verified class.
+tools/animation/generate-equipment-catalog.cjs reproduces the IDs from
+preview3 for 107 weapon classes, 109 meshes and 121 materials.
+
+The game thread reads the local Pawn's CurrentInHandWeapon and offhand
+visuals. It discovers attached mesh components in bounded lists and
+uses the actual first-person hand transform to capture the placement.
+Material ID capture runs at most five times per second once the part is
+stable. It resolves recognized parent materials on dynamic instances.
+The receiver attaches owned static or poseable mesh components to the
+remote skeletal display. It disables collision and overlap, computes
+placement from the remote hand and destroys replaced or removed parts.
+Avatar destruction also releases its owned components.
+
+Native skin selection
+
+Launch with -QDCoopSkin=prince, -QDCoopSkin=arjaot, -QDCoopSkin=ippibi,
+-QDCoopSkin=ujji or -QDCoopSkin=imba. The default is prince. The
+QDNativeSetSkin(unsigned id) bootstrap export accepts the same ordered
+IDs 1 through 5 during a room. The command and export do not modify the
+installed mod's saved selection. The display validates the selected
+mesh's skeleton and applies the corresponding face material. A skin
+change reuses the same owned avatar.
+
+Build and reproduction
+
+Run node tools/animation/generate-equipment-catalog.cjs --check and build
+with Build-EnemyM1.ps1. Keep the asset packs from preview3 unchanged.
+Stage the world lab as in NATIVE-PLAYER-POSE-M31.txt, with NativeBody,
+NativeSpear and Skins in work/m33/assets. Set QD_WORLD_PLAYERS=1 and
+QD_WORLD_PLAYER_GEAR=1. The private runner checks the source pack hashes,
+stages the packs in the isolated copies and removes them after exit.
+The fixture uses the game's inventory, equip, swap and unequip functions,
+refreshes the held item from the equipment slots, and reads actual remote
+meshes, face materials, attachment, collision and destroyed weak keys.
+The runner checks all seven isolated save hashes on each peer. The
+fixture's game-native equip calls can change its two challenge files.
+The runner records those hashes and restores the two private copies.
+Any change to the other five files fails the check.
+
+This milestone covers the equipment component and material IDs. Animated
+weapon bones, dynamic material parameters, appearance menu and profile
+persistence, rescue poses, effects, and live multi-account Steam gameplay
+remain work for feature parity.

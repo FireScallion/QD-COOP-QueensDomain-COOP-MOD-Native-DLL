@@ -1,0 +1,37 @@
+M8 native weak-object resolution (current Steam build only)
+
+The hot weak-reference lookup no longer calls UE4SS Get. Object construction,
+serial allocation, ProcessEvent, reflection, Lua bootstrap and EngineTick
+registration still depend on UE4SS. This is not a UE4SS-free playable mod.
+
+After the existing executable hash check, first active game-thread tick reads
+TUObjectArray at EXE RVA 0x4A64260 and compares all 13 metadata weak references
+against UE4SS. Any failed comparison disables this path; stats native_weak=-1.
+Success installs the native getter, stats native_weak=1. Before activation it is 0.
+The implementation requires the game thread and pinned Win64 layouts:
+32-byte chunked array; 65536 entries/chunk; 24-byte FUObjectItem; 8-byte weak key.
+It checks index/array bounds, serial, object pointer, PendingKill and Unreachable.
+The direct hot reader assumes engine-owned array/chunks remain valid on that
+thread. It is not a cross-thread UObject API or arbitrary-memory validator.
+Serial allocation deliberately retains the existing constructor: UE4SS uses
+engine soft-object-reference conversion for new serials, not a private counter.
+
+Actual isolated Steam build26496428 validation:
+- 6496 title weak references: zero differences from UE4SS.
+- 53103 post-load weak references: zero differences, including 606 invalid ones.
+- Retained title reference invalidated on map load; spawned Actor resolved while
+  alive and became null immediately after K2_DestroyActor in both getters.
+- Two processes synchronized 24 enemy actors, configured animation, exercised
+  ownership freeze/idempotence/exact restore/rebind and one Kill/ACK roundtrip.
+- Ownership release intentionally unbinds the entity. A test attempted takeover
+  without rebind and was rejected; explicit R/J rebind then takeover succeeded.
+  One initial malformed F command was also rejected. No production workaround.
+- 3501-frame sample with 23 bound actors after release: native callback median
+  0.0903ms, p95 0.1221ms, p99 0.1350ms; frame median 2.2742ms. Offscreen client,
+  NullRHI host, same machine. No paired baseline and no whole-mod FPS claim.
+- All existing build/model/ABI suites and new weak-object boundary tests pass.
+Real object-slot reuse with an observed new serial was model-tested only.
+
+Remaining: native construction/reflection/ProcessEvent/tick/bootstrap; durable
+host/session/travel/rejoin; full preview3 player/world/UI/rescue/save parity and
+real four-player validation. Total long-term goal remains active.

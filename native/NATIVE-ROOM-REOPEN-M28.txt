@@ -1,0 +1,35 @@
+M28 — stop and reopen a played native room
+
+The game thread disables the room and restores the Kill hook before
+cleaning replica objects. It signals the transport worker to exit.
+Stop reports completion only after all owned replicas have been removed
+and the worker handle is signaled. The worker leaves the Steam lobby
+and closes this mod's peer channels before it exits.
+
+After worker exit, the core discards both packet queues and clears
+the actor bindings, generation tombstones, animation timelines, death
+and ownership records, clock and current world context. Process-scoped
+weak reflection catalogs can be reused. New rooms rediscover required
+metadata and establish new room credentials. Loopback discards packets
+from the previous room before they reach the game-thread queue.
+The loopback caller must supply fresh room credentials for each start.
+
+The bootstrap refreshes game metadata before every Steam room start.
+A new epoch is rejected while an earlier one still owns live state.
+A pending reward transaction or bound durable receipt also prevents
+reopen. The journal and any outstanding reward state remain available
+for recovery. Room shutdown does not reconcile or migrate receipts.
+
+Build the lab as described in NATIVE-WORLD-ATTACHMENT-M27.txt and link
+-lws2_32 in addition to -lbcrypt. Set QD_WORLD_AUTOMATIC=1 and
+QD_WORLD_REOPEN=1 for the four-process private-station runner.
+It verifies the initial room and death, stops each process's room,
+then reuses the same local ports with a new nonce and promotes the
+first guest. The new host's port sends a valid previous-epoch offer to
+the new guests before the second host transport starts. Guests reject
+it and apply the new host's slot 1 at generation 1. Both stops check
+the source actors and replica cleanup independently of the core state.
+
+Actual Steam regression remains the same-user standalone private title
+room probe. Automatic replacement of departed Steam peers within a
+live lobby, real multi-account gameplay and cross-map resume are pending.

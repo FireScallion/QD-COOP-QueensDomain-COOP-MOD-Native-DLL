@@ -1,0 +1,37 @@
+M15 native world enemy replication
+==================================
+
+The native lab resolves and validates the actual title functions, loads
+slot 1 into its separate profile, and waits for the active world player.
+Both sides create a real EnemyBase fixture with the game's deferred spawn
+functions. FField sizes, offsets and parameter flags determine the spawn
+arguments. The fixture has gameplay tick and collision disabled so that
+the test observes replicated state on a stable actor.
+
+QDEnemyRegisterNative reuses the Lua registration checks for type, mesh
+association, generation, ownership and weak lifetime. It runs on the
+game thread and drives the existing core capture and application paths.
+
+Steam build 26496428 was verified against the installed executable hash.
+The isolated host ran NullRHI and the isolated client used RenderOffscreen
+on D3D12. Neither loaded UE4SS. The same slot fixture was copied into
+separate role profiles. The host captured and sent 33 real actor
+snapshots. The client received 33 and applied 481 frame samples. The
+client HP was 67.50 before replication, then 123.25 and 118.75 from the
+host. The client's X coordinate moved 80 game units and the final
+position matched the host on all three axes. Both game and launcher
+exit codes were zero. Thread, lifetime and socket error counters were
+zero on the final run.
+
+QueryPerformanceCounter measured the core tick call with one registered
+enemy. Host p50/p95/p99 were 1.6/2.2/25.8 microseconds over 752 samples.
+Client p50/p95/p99 were 3.0/3.8/4.4 microseconds over 563 samples.
+These timings cover the core call in this fixture. A preview3 comparison
+and populated four-player performance measurements are still pending.
+
+The first run exposed a streaming enemy that expired shortly after the
+map loaded. Later runs use a spawned fixture. A receiver-first shutdown
+also produced a socket error while the host was still sending. The lab
+now waits for the receiving socket before sending and stops the host
+before closing the receiving socket. The live gameplay lifecycle and
+peer disconnect handling remain separate integration work.

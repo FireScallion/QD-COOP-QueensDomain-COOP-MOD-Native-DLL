@@ -1,0 +1,31 @@
+M11: original-engine weak reference construction
+
+Trace in pinned Steam build26496428:
+KismetSystemLibrary Conv_ObjectToSoftObjectReference exec thunk RVA0x2E25AD0
+calls native conversion RVA0x2974510, which calls weak assignment RVA0x11BB360.
+That assignment reads UObject.InternalIndex at12 and calls engine serial
+allocator RVA0x11990D0 with GUObjectArray RVA0x4A64250. The allocator owns atomic
+counter increment/CAS and returns existing serials; null assignment writes
+index=-1/serial=0. We call the original assignment, not a replacement allocator.
+Only the first8 bytes of the caller's weak storage are written.
+
+After pinned build and previous native boundary checks, cold activation verifies
+16 entry bytes,13 metadata key/resolution comparisons, untouched tail guards,
+and null construction. api.weakctor then invokes the original game routine on
+the game thread. stats native_construct0 pending/1 installed/-1 rejected.
+Bootstrap before activation still binds UE4SS. This is not UE4SS-free startup.
+
+Actual isolated game tests:128 objects whose serial was0 were assigned natively,
+then compared with UE4SS: zero mismatches and zero tail-guard changes. Null key
+was -1/0. A title reference expired on map load; a newly spawned Actor resolved
+while alive then returned null in both getters after K2_DestroyActor.
+The candidate DLL activated all four native boundary states. Subsequent native
+animation/death/ownership metadata registration and ownership freeze/repeated
+acquire/exact restore passed (fixture had0audio components). Full build/model/
+ABI suites passed. This stage focuses on construction/lifecycle; no fresh full
+network/performance acceptance is claimed. Prior M10 two-process evidence is
+separate, and full preview3/four-player scope remains unfinished.
+
+Next: replace bootstrap and MSVC UE4SS tick bridge/source-hook/resource boundary.
+All engine members of Api (event,weakctor,weakget,reflection/type/bool) are now
+native after activation, but Lua/bootstrap/tick and producers still need UE4SS.

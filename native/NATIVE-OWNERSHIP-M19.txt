@@ -1,0 +1,37 @@
+M19 native enemy ownership takeover
+
+This stage uses the pinned Steam Win64 build 26496428. The official
+Shipping.exe SHA256 is
+79CCDC6CF9E1E85512D52D2CB1C3FFA963D400BE1555051A3523C982D181D1E6.
+
+QDEnemyConfigureNativeOwnership, QDEnemyTakeNativeOwnership and
+QDEnemyReleaseNativeOwnership reuse the legacy ownership engine with
+typed arguments. Calls are restricted to the native game thread.
+Takeover requires client mode and a successfully bound transport.
+The entity ID and generation must match the active registration.
+Configuration cannot be replaced while there are owned entities.
+
+The isolated world lab uses one host and three client game processes,
+each with its own profile and no UE4SS module. It loads the same saved
+world in each process. The lab establishes a live actor state, takes
+ownership twice, rejects an obsolete release, releases the correct
+generation, re-registers the fixture and takes it again. The independent
+engine reads on every client returned flags 3324 -> 3 -> 3324 and
+time dilation 0.75 -> 0.00 -> 0.75. The states include actor, mesh and
+movement ticks, collision, visibility, controller tick, update rate
+optimization and line of sight. Each client records two takes, one
+release and zero ownership failures. These fixtures have controllers
+and one audio component each. The audio is idle and no BrainComponent
+is present, so playback restoration and brain pause are unexercised.
+
+The host original Kill observer forwarded two calls and queued only
+the registered enemy's death. Each client applied death once and hid
+its display. The delayed client received three duplicates. Host death
+pending reached zero and the Kill slot was restored. All four game
+processes exited normally. The role save file hashes match the seed.
+
+Game-thread core tick p95 was 4.0 us on host and 5.2/3.9/4.0 us on the
+three clients. This measures the one-enemy lab on the local machine.
+The test uses fixed loopback peers and a controlled fixture. Disconnect,
+world travel, natural enemy enrollment and comparative gameplay
+performance remain to be validated.

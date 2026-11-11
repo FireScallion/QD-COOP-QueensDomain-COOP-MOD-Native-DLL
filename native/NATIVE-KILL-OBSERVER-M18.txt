@@ -1,0 +1,38 @@
+M18 native Kill observer
+========================
+
+QDEnemyObserveNativeKill installs a host-side observer for the bound
+EnemyBase Kill UFunction on the game thread. The setup checks the pinned
+executable, canonical function path, parameters, flags and original
+function entry bytes. A writable UFunction function slot is swapped by
+compare-exchange. The observer checks the current frame's function,
+resolves the registered actor, and reserves its existing reliable death
+event. The original engine call receives the same three arguments.
+
+The read-only probe on Steam build 26496428 found flags 0x0C820000,
+parameter size 2 and a function target at RVA 0x11A7E40. Disassembly
+shows the original entry taking the object in RCX, using the frame's
+function at RDX+16 and forwarding the result argument in R8. The
+observed UFunction slot is at byte offset 216.
+
+The core pins the observer module and restores the original slot on
+native stop when the weak function is still live and the slot still
+belongs to this observer. A different slot value is preserved. The
+observer is inactive after stop, and original call-through remains
+available for a call already in flight.
+
+In the final four-process run, the lab invoked the original Kill for
+one unregistered enemy and one registered enemy. The host observed
+and forwarded both calls, ignored the unregistered binding for
+publication and queued one terminal event. The lab used no manual
+queue call. Each of three peers applied one death. The delayed peer
+received three duplicates, and the host cleared the pending event
+after four send rounds and six ACK packets including duplicates.
+The host read back the original function slot after stopping.
+All game and launcher exits were zero. UE4SS was absent. The isolated
+save files matched their seeds.
+
+The two Kill calls are controlled lab stimuli. The run validates the
+observed engine dispatch and reliable death pipeline. Natural combat,
+world travel, animation, rewards and production room admission need
+their own integration runs.

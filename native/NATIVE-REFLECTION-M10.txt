@@ -1,0 +1,34 @@
+M10 native reflection access (current pinned Steam Win64 executable)
+
+After native weak/event installation, replace seven UE4SS accessors with native
+property offset/element size/struct size/function parameter size, bool get/set,
+and IsA. These are game-thread APIs over validated live engine metadata, not
+safe arbitrary-memory accessors. No cross-version compatibility is claimed.
+Observed layouts: FProperty.ElementSize60, Offset_Internal76;
+UStruct.PropertiesSize88; UFunction.ParmsSize182; FBoolProperty field size120,
+byte offset121, byte mask122, field mask123; UObject.Class16; UStruct.Super64.
+Bool writes clear the field mask and OR the byte mask; this preserves packed
+neighbors and supports full-byte native bools. IsA follows class ancestry with
+256-depth protection. Reflection tests cover masks, byte offsets, array strides,
+neighbor preservation, inheritance/null/cycles and typed field offsets.
+
+Cold activation compares actual metadata field addresses to UE4SS, all 256
+initial byte patterns and both boolean writes for four bound properties (2048
+private-buffer write comparisons), plus metadata class chains and type results.
+No game actor is changed by those comparison writes. Any mismatch rejects
+activation (native_reflection=-1); 0 pending and 1 installed are observable.
+After activation, animation/death/ownership configuration also uses the native
+metadata accessors. First bootstrap still uses UE4SS to discover/validate data.
+
+The full build/model/ABI suite passed. Isolated current Steam instances enabled
+native_reflection=1 with native_weak=1 and native_event=1. Native ownership
+freeze/idempotence/exact restore/rebind passed, and all24 replicas were taken
+without ownership failures. The fixture had no audio components.
+
+Remaining dependencies include weak-reference construction/serial allocation,
+Lua/bootstrap, tick bridge, resource discovery and producer hooks. Complete
+preview3 gameplay parity and real four-player acceptance remain outstanding.
+Actual death path also passed: one client Kill, one host ACK, no pending death.
+A 7514-frame offscreen-client/NullRHI-host sample recorded native callback
+p50 .0866ms/p95 .1260ms/p99 .1386ms and frame p50 2.3222ms. This is not a paired
+baseline, GPU timing or full-mod performance acceptance.

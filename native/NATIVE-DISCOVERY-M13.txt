@@ -1,0 +1,42 @@
+M13: UE4SS-free rendered discovery and normal shutdown
+
+Investigation resolved the M12 zero-Tick observation for the tested setup:
+matching render parameters and Config still stalled for120s with a fresh
+isolated NVIDIA DXCache. A suspended/resumed thread snapshot showed a thread
+waiting in ntdll with NvMemMapStoragex/nvwgf2umx candidate return addresses.
+This is diagnostic stack scanning, not a symbolically unwound call stack.
+Replacing only that private DXCache with an independent copy from the known
+working isolated profile allowed rendered native Tick immediately. This ties
+failure to the isolated cache setup; it does not establish a universal driver
+bug or guarantee every fresh profile. Original files/failure evidence retained.
+The test runner copies a prepared private cache when absent; no links, global
+driver changes, official game edits or real-profile writes are used.
+
+Native discovery reads current-build FNamePool at EXE RVA0x4A27F00. Disassembly
+of engine FName::ToString RVA0xFB8DE0 establishes blocks at+16, block=index>>16,
+byte offset=low16(index)*2, entry length=header>>6, wide bit0. The bounded reader
+handles numbered names and UTF16-toUTF8, rejects malformed entries. Object
+FName24/Outer32 produce canonical dot-separated paths. UStruct child FFields80,
+FField next32/name40 permit property discovery; inheritance uses Super64.
+These are game-thread readers after pinned build validation, not arbitrary
+remote-memory access or cross-version APIs. Inherited lookup is model-tested;
+the actual QuitGame validation uses direct function fields.
+
+Actual no-UE4SS RenderOffscreen test using the production native Tick bridge:
+1001 ticks on the process main/game thread7868,all1001 engine weak validations,
+wrong_thread0,UE4SS module absent;92909 name reads,0 decode failures. Found
+KismetSystemLibrary CDO,QuitGame UFunction,liveTitleScreenUI by native scanning,
+retained them as weak keys,validated exact canonical function path plus four
+parameter offsets/sizes(0/8,8/8,16/1,17/1),ParmsSize18. Called original virtual
+ProcessEvent with native parameters;game_exit0 and launcherExit0. No deadline
+termination in this final test. Caching stops repeated registry scans once the
+three weak targets are found. Prior first-quit test also exited0 separately.
+
+New name/object/property models cover bounds,number suffixes,ASCII,UTF16
+surrogates,malformed entries,object outer cycles,field cycles and inherited
+lookup. They pass. No new whole-mod/FPS acceptance is claimed.
+
+Still incomplete: initialize actual co-op core without Lua/UE4SS,port all
+preview3 gameplay and source/resource hooks,real four-player networking/session/
+travel/rejoin/durable-host behavior. Successful native title boot/discovery is
+not full mod parity. Next use these readers for native metadata/bootstrap.

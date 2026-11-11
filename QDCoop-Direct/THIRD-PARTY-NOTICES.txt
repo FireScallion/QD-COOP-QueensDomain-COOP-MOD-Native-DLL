@@ -1,0 +1,29 @@
+QD COOP 1.18.0-preview3
+
+UE4SS 3.0.1 Beta #0 (Git SHA e84db30c)
+https://github.com/UE4SS-RE/RE-UE4SS
+Copyright (c) 2022 Narknon. MIT license in runtime/ue4ss/LICENSE.
+The player package includes the matching loader and shared Lua helpers.
+
+.NET 9.0.9, Windows x64 runtime
+https://github.com/dotnet/runtime
+The self-contained player bridge carries runtime components and notices.
+See licenses/DOTNET-LICENSE.txt and licenses/DOTNET-THIRD-PARTY-NOTICES.txt.
+
+UAssetAPI 1.1.0
+https://github.com/atenfyr/UAssetAPI
+MIT-licensed authoring dependency referenced by the Blueprint tools.
+
+Queen's Domain
+QD COOP uses game class and asset references, bone names, and rig calibration.
+The player package contains cooked mod assets that include game-derived
+material. Confirm redistribution permission for those assets before posting
+the player archive publicly. The source package omits the cooked Paks and raw
+game assets and preserves the code and reference metadata used by the mod.
+
+Skin appearances
+Soldier body, helmets and face textures originate from Queen's Domain.
+The mod rebinds their geometry to the existing prince skeleton and renders
+menu portraits from these meshes. These are game-derived assets, not wholly
+new original artwork. The source archive includes the binding/authoring code
+and bone-name mapping; extracted meshes/textures and cooked assets are omitted.

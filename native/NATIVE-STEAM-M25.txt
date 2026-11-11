@@ -1,0 +1,55 @@
+M25 native Steam rooms and data transport
+
+QDEnemyStartNativeSteam starts the same native worker used by the game
+thread packet queues with a Steamworks transport. Host mode takes a
+capacity of two to four and a private or friends-only setting. Join
+mode takes the Steam lobby ID. QDEnemyReadNativeSteamRoom returns the
+worker's room phase, failure, membership count, target size and link
+readiness. Gameplay is enabled only after the room is locked and each
+required peer has exchanged a hello and acknowledgment. A waiting room
+can be canceled and reopened in the same process.
+
+The adapter uses the game's Steamworks v163 flat interfaces. It checks
+App ID 1799840, login and subscription. It reuses the Steam API pipe
+when present and can initialize an absent pipe with InitFlat. The game
+keeps ownership of callback dispatch and API shutdown.
+Call completion is scoped to the specific create/join handle. The
+worker closes only the mod channel and leaves its lobby on exit.
+
+The host writes the QDN4 transport, pinned build, owner, target
+capacity and a fresh random room nonce. The room is locked before the
+sorted member list is published. Guests compare that list to Steam's
+actual members and owner. The native Session admission model gives the
+host up to three stable guest slots. Guests address only the host.
+SteamNetworkingMessages channel 18404 authenticates sender identities.
+The mod checks that identity against the locked roster before it accepts
+a control or gameplay packet. Both room ID and nonce scope the data.
+The worker checks ongoing membership and liveness, and exits the
+session if either fails. Fixed loopback still uses the same game
+thread queues and lifecycle. Death, enrollment and reward fan-out use
+the active transport peer mask.
+
+The real private room smoke ran in the official Steam build 26496428
+on an isolated game copy and stayed at the title screen. It used the
+same Windows user as Steam. A test under the sandbox account had no
+usable Steam pipe. The same-user run used the already initialized pipe
+and created two distinct private four-capacity rooms in one process.
+The title test left each room. After leaving the first it asked Steam
+to join that closed room, and the service returned response 2
+(DoesntExist). The process exited normally without UE4SS. Its seven save
+hashes matched the isolated baseline.
+
+The pure tests exercise four-person identity mapping, duplicate and
+invalid participants, independent handshake acknowledgments and
+room-scoped packets. The regular four-process world regression tests
+the new peer-mask wiring on loopback. Four enemies remained in sync,
+and each guest cleaned five owned replica pairs.
+Measured core tick p95 was 41.4 us on the host and 11.7, 8.7 and
+8.5 us on clients. The live Steam test used one signed-in account.
+Four distinct accounts exchanging gameplay,
+in-game invites and post-play reconnect/travel remain to be verified.
+
+Steamworks API references
+https://partner.steamgames.com/doc/api/ISteamMatchmaking
+https://partner.steamgames.com/doc/api/ISteamNetworkingMessages
+https://partner.steamgames.com/doc/api/ISteamUtils

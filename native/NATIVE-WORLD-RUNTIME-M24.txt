@@ -1,0 +1,57 @@
+M24 automatic native enemy world runtime
+
+QDEnemyEnableNativeWorld enables the world-scoped game-thread service
+with a weak player context. The host checks for a free slot at most
+twice per second, uses the engine's world enemy enumerator and admits
+up to two eligible actors per pass. The caller chooses a bounded host
+slot limit. Catalog class, mesh, animation profile and skeleton
+readiness are checked before reserving a generation. This avoids
+sending retire traffic or consuming a slot for an unready candidate.
+A lost actor is retired by the M23 lifecycle and a subsequent pass
+can reuse the slot at a higher generation.
+
+QDEnemyConfigureNativeFactory validates 25 scoped Unreal objects and
+reflected parameter layouts. The loaded-object catalog scan caches
+the preview3 enemy classes and meshes by weak identity. Upon an offer,
+the client factory creates a game actor and skeletal display through
+the engine's deferred spawn calls, assigns the offered mesh and takes
+ownership before confirming. It queries actual owned audio components
+and frees the returned native array with the game's allocator. It
+binds a compatible animation profile on the display. Partial creations
+are cleaned before retry. A ready replica waits for confirmation
+without duplicating the actors. A client tries up to two pending
+offers per tick and skips the queue when no offers are pending.
+QDEnemyInspectNativeBinding supplies game-thread weak identities for
+diagnostics and does not spawn or alter the objects.
+
+The final automatic run used Steam build 26496428, one isolated host
+and three isolated clients without UE4SS. The test bootstrap supplied
+validated game metadata and a player context. Selection, enrollment,
+creation, ownership and confirmation were driven by the core. The
+host selected four actual world enemies, including Mossy Fighter and
+Cocker, across two enumeration passes. The lab set distinctive HP
+markers and kept those sources still for transform comparisons.
+All three clients received the same HP and actor/mesh transforms and
+applied animation frames. The lab then invoked the engine DestroyActor
+on the first host actor to exercise automatic expiry. The host retired
+that generation and automatically filled the same slot with a
+RattyBugger at generation 2. Each client created and confirmed five
+pairs over the run, checked that the old pair was gone, and removed
+the four remaining pairs when the runtime stopped. The four remaining
+original actors on the host stayed valid.
+
+The host had three enumerations and three engine frees, 15 enrollment
+confirmations, one automatic retirement and three retirement ACKs.
+The preflight deferred four candidate attempts that lacked a ready
+animation profile. There were zero factory failures or unloaded
+asset requests in the final run. Core tick p95 was 33.7 microseconds
+on host and 12.3, 8.5 and 7.7 on clients. These are four-enemy timings
+from this isolated loopback run. One client rendered offscreen. Full
+combat, missing-profile pose fallback, unloaded asset loading,
+multiplayer interest, Steam admission and representative whole-game
+performance remain separate integration work.
+
+The explicit M23 death and live retirement flow also passed a
+two-process regression with the M24 core. The early reuse assertion
+runs in the retirement request tick to cover the waiting state
+even when the peer returns its acknowledgment immediately.

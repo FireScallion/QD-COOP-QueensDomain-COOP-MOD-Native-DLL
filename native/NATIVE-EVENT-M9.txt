@@ -1,0 +1,29 @@
+M9: native virtual ProcessEvent dispatch
+
+After pinned-executable and native-weak validation, the adapter verifies the
+ProcessEvent entries of 13 live metadata objects and replaces api.event with a
+native Win64 virtual call through vtable byte offset 0x220 (slot 68).
+This preserves virtual dispatch: observed Actor entry RVA0x265F3A0 differs from
+UObject entry RVA0x11A7AA0. Never call the latter directly for every object.
+The cold installation expects metadata UClass/UFunction entries at 0x11A7AA0;
+a mismatch stops active processing and sets native_event=-1. State0 pending,
+state1 installed. The caller must own the game thread and valid engine objects;
+this wrapper is not an arbitrary-pointer or cross-thread API.
+
+Evidence: UE4SS wrapper disassembly at RVA0xB0D4F0 loads a cached byte offset
+from RVA0x135DCEC then dispatches through that object's vtable. In-process
+inspection after a real call showed byte offset544. Player location, rotation,
+velocity, destruction status and SkeletalMeshComponent transform matched the
+legacy wrapper byte-for-byte for their reflected parameter sizes.
+
+The full build/model/ABI suites passed. Two isolated instances of current Steam
+build26496428 enabled native_event=1/native_weak=1 and synchronized24 enemies
+with animation metadata configured. Ownership freeze/idempotence/exact restore
+and explicit rebind/takeover passed; no audio components existed in that actor.
+Host Kill(true,true) reached one client Kill and a cumulative host ACK.
+A 4111-frame offscreen sample had callback p50 .0859ms/p95 .1211ms/p99 .1358ms,
+frame p50 2.3026ms. These are not paired baseline or whole-mod FPS results.
+
+Still dependent on UE4SS: cold startup/Lua ABI, tick registration, reflection,
+weak construction/engine serial allocation, source hooks and resource lookup.
+No UE4SS-free playable build or full preview3/four-player parity is claimed.

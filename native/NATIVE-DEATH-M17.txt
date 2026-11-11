@@ -1,0 +1,38 @@
+M17 native display binding and reliable death
+==============================================
+
+The native core exposes QDEnemyBindNativeDisplay,
+QDEnemyConfigureNativeDeath and QDEnemyQueueNativeDeath. The display
+and death setup share the existing Lua J, D and K implementations.
+The display retains weak keys for the actor, mesh and owner function.
+The death queue retains the terminal reservation and a separate pending
+bit for each configured peer.
+
+The isolated world lab spawns a game enemy on all four roles and a
+SkeletalMeshActor on each client. Each display receives the live enemy's
+mesh asset. The lab verifies actor positions and mesh component world
+positions separately. The source mesh is offset from its gameplay
+capsule, so comparing the display root to that capsule is incorrect.
+
+The host queues the terminal event and invokes the original Kill on the
+fixture after all clients confirm the second HP update. It uses the same
+two Kill arguments as the earlier death lab. The third client continues
+to receive UDP while its core consumption is deferred for 650 ms after
+publication. The other clients process normally.
+
+Final Steam 26496428 run used PIDs 30496, 12300, 30060 and 30712. All
+roles lacked UE4SS. Each client applied one death, hid the display and
+read zero HP on its still-live gameplay object. Client 3 observed three
+duplicate terminal packets. The host sent the event in four rounds and
+accepted six ACK packets including duplicates. Its pending queue
+cleared. All game and launcher exits were zero. Death rejections,
+socket errors and reward stream applications were zero. All four test
+save sets and the baseline isolated save set matched the seed hashes.
+
+The first run exposed missing readiness for the host's streamed lizard
+class. The next run exposed the incorrect capsule and display position
+comparison. The final run passed with both checks corrected.
+
+This stage uses a controlled Kill producer in the lab. Automatic
+observation of gameplay Kill calls, native ownership and animation
+setup, and the remaining preview3 room and gameplay work are pending.

@@ -1,0 +1,55 @@
+M32 native player body animation on Steam build 26496428
+
+The QDN4-4 player pose snapshot adds movement flags, base walk speed,
+view pitch, two hold sequences and up to seven simultaneous montage lanes
+to kind 12. The packet is 220 bytes. Each lane carries a preview3 catalog
+ID, playback instance serial, position, rate and play state. The receiver
+matches body inputs to the sequence selected by its existing transform
+timeline. All other player identity, epoch and lifetime rules still apply.
+
+The game thread reads the real first-person Arms AnimInstance. The
+MontageInstances array and blend field were checked against the pinned
+GetCurrentActiveMontage code. Reflected struct metadata supplies the
+Montage, Position, PlayRate and bPlaying layouts. Only bounded active
+instances are inspected. The catalog resolves paths once when an asset
+identity changes and selects the newest active entry in each lane.
+tools/animation/generate-player-catalog.cjs reproduces the 185 IDs, 108
+montage mappings and 10 looping sections from preview3 body_catalog.lua.
+
+The owned display uses the preview3 ABP_QDBody graph and retargeted
+animations on the stock player skeleton. It updates walk, reverse walk,
+run, jump and landing inputs and keeps both arm lanes and all seven
+montage groups independent. Play and stop calls target the display
+AnimInstance. Source asset lengths and cooked lengths map phase and rate.
+The existing graph plays the poses locally without per-bone DLL writes.
+Pitch is applied around the verified near-axis head bind.
+
+Asset dependencies
+
+Use the original QDCoop-NativeBody.pak and QDCoop-NativeSpear.pak from
+the preview3 player archive. The NativeSpear pack provides the custom
+bone and curve codec settings imported by the NativeBody animations.
+The DLL validates those settings before requesting the graph. Without
+them it leaves the stock coolPose presentation active. A Body-only
+prototype crashed during Unreal animation deserialization before this
+guard was added. No assets or binaries from the installed game are
+part of the stage archive.
+
+Reproduction
+
+Run node tools/animation/generate-player-catalog.cjs --check and rebuild
+the release core using Build-EnemyM1.ps1. Build and stage the world lab
+as described in NATIVE-PLAYER-POSE-M31.txt. Put the two verified PAKs in
+work/m32/assets. Set QD_WORLD_PLAYERS=1 and QD_WORLD_PLAYER_BODY=1.
+The runner temporarily stages the PAKs in both isolated copies, removes
+them after exit, and verifies each of the seven save hashes per role.
+The fixture holds actual Pawn movement input and starts two original
+montages in the host Arms AnimInstance. It reads the remote engine graph,
+matching body assets, locomotion variables, advancing action positions
+and both stop transitions. QD_WORLD_PLAYER_BODY_FALLBACK=1 with the body
+flag off stages only NativeBody to exercise the missing-codec guard.
+
+This stage does not connect animation lifecycle inputs to rescue or
+downed state yet. Weapons, skins, foot correction, full action coverage,
+multiplayer Steam gameplay and a matched preview3 performance comparison
+remain separate work.

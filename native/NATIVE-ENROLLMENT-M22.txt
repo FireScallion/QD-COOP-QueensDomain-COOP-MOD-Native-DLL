@@ -1,0 +1,57 @@
+M22 native world enemy enrollment
+
+The engine function GetAllActorsOfClass provides the source actors in
+the live context world, including streaming levels. On the pinned Steam
+build the reflected thunk at RVA 0x2DBE520 passes context, class and a
+16-byte TArray to the implementation at RVA 0x28DDA50. The thunk also
+uses the engine free entry at RVA 0xEAE0B0 for its temporary allocation.
+QDEnemyConfigureNativeEnumeration checks the canonical function path,
+parameter layout, native slot and code signatures before using these
+entries. Every returned allocation is freed by the game allocator.
+
+QDEnemyEnumerateNativeEnemies returns serial-checked identities and
+class/mesh IDs for living catalog enemies within 7000 units of the
+supplied player. The caller sets a bounded output count and receives
+nearest candidates first. Enrollment requires an identity from the
+latest enumeration in the current epoch and revalidates the live
+actor. The class and mesh tables retain the original preview3 order.
+Use node tools/world/generate-native-enemy-catalog.cjs --check to
+verify the generated table.
+
+QDEnemyEnrollNativeEnemy registers a host actor and publishes a typed
+offer with the slot, generation, catalog class/mesh IDs and position.
+A client reads the offer, registers its matching game actor and
+display and takes ownership before sending a confirmation. Conflicting
+or stale offers cannot register an actor. Unconfirmed peers receive
+retried offers every 200 ms. The host sends snapshots and terminal
+events to that peer after its confirmation. The wire decoder validates
+the room, world, packet shape, slot/generation, IDs and position.
+
+The final isolated run used official Steam build 26496428. Three
+host enumerations each returned 100 engine actors, with 188 eligible
+results across the three calls and 63 in the final call. All three
+arrays were freed. The longest measured enumeration was 236.7 us.
+The host enrolled one existing Default_Lizer_01_C from the loaded
+Ruins level with actual 50 HP. The host did not spawn that actor.
+The test pauses its local tick and collision after enrollment and
+sets a controlled second HP marker of 45.5. The host invokes the
+original Kill after clients complete the playback and stop checks.
+
+The three clients instantiate from offer class 131 and mesh 42. They
+reject a mismatched generation and confirm exactly once each. The
+third client holds confirmation for at least 500 ms. The host sends
+three offer batches and accepts three confirmations. Each client
+converges on the host transform, reads both HP markers, plays and
+stops the montage and applies the terminal event once. The delayed
+death consumer sees three duplicates and the host pending count
+reaches zero. The Kill observer restores the original slot. All four
+processes exit normally without UE4SS. All seven save hashes match
+the seed in each profile.
+
+Core tick p95 was 3.7 us on host and 6.0, 5.1 and 5.3 us on clients.
+The enumeration is timed separately. This one-enemy integration run
+uses fixed loopback peers and controlled engine calls. Candidate
+selection and replica creation are driven by the test bootstrap.
+Continuous enrollment, a retire/slot-reuse protocol, receiver asset
+loading, normal combat and representative gameplay benchmarks are
+separate integration work.

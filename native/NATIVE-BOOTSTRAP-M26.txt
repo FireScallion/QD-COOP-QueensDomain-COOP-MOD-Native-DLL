@@ -1,0 +1,46 @@
+M26 — standalone native Steam room bootstrap
+
+Target build: Steam 26496428, AppID 1799840.
+QueensDomain-Win64-Shipping.exe SHA-256:
+79CCDC6CF9E1E85512D52D2CB1C3FFA963D400BE1555051A3523C982D181D1E6
+
+Build with Build-EnemyM1.ps1 and a MinGW-w64 GCC toolchain. The isolated game
+uses xinput1_3.dll, QDNativeBootstrap.dll and QDCoopNativeM1.dll beside the
+Shipping executable. Start from a clean isolated copy of the pinned game.
+The XInput entry preserves the two ordinal imports used by this executable
+and forwards the seven named XInput calls to the system xinput1_3.dll.
+The proxy starts the bootstrap on a worker after process-attach callbacks.
+The bootstrap checks the Shipping hash through the Tick bridge before it
+reads engine objects. A launch with no room options leaves the bridge idle.
+
+  -QDCoopHost=2, -QDCoopHost=3 or -QDCoopHost=4  Private room by default
+  -QDCoopFriends                              Friends visibility for hosting
+  +connect_lobby <lobby-id>                    Steam launch invitation
+  +qdcoop_lobby <lobby-id>                     QD COOP launch alias
+
+Trusted in-process controls submit validated requests through the bootstrap
+mailbox. A return of 1 means the request was accepted for processing.
+  int QDNativeHostRoom(unsigned seats, unsigned friends)
+  int QDNativeJoinRoom(uint64_t lobby)
+  int QDNativeLeaveRoom()
+  int QDNativeReadStatus(qdcoop::native_room::Status* out, unsigned size)
+
+The snapshot is safe to read from another thread. The ABI is declared in
+include/qdcoop/native_room_launch.hpp. Read the Steam phase and failure
+fields for the worker result. The game thread discovers the 42 required
+metadata fields in bounded slices and owns room start, stop and status.
+The worker reuses the game's Steam pipe on the verified title-screen run.
+
+For the private-station lab, build native_tick_lab/native_launch.cpp with
+-municode, and native_tick_lab/native_boot_probe.cpp as a shared library.
+Use C++20, -O2, -static, and the native/include directory. The launcher starts
+the game with -QDCoopHost=4 and injects only the test driver after startup.
+The test driver reads the room created by the game's import path, validates
+ordinal 2 forwarding, leaves, opens a second four-seat room, leaves, then
+checks Steam rejects re-entry to the first room. It schedules the game's own
+QuitGame on the game thread after the room checks. Require exit 0, no
+UE4SS.dll module, unchanged isolated saves and restored isolated loader.
+
+Scope: title-screen room control. In-process invitation callbacks, runtime
+attachment to the live player, Steam gameplay synchronization, and
+representative frame-cost measurements are later integration work.
