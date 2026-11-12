@@ -1,12 +1,19 @@
 static bool world_mechanism_method(void* type,std::string_view name,Weak& out);
+static bool world_elevator_controls(void* lever);
 #include "native_world_shrine.inc"
 
-struct WorldMechanismActor { WP::Guid key; Weak actor,enable,disable,saved_open; ShrineGate shrine; };
+struct WorldMechanismActor {
+    WP::Guid key;
+    Weak actor,enable,disable,saved_open,saved_on;
+    ShrineGate shrine;
+    bool observed{};
+};
 struct WorldMechanismBinding {
     Weak type;
     MedicMap guids;
     void* active{};
     void* script_openable{};
+    void* disable_saving{};
     int count{-1};
     bool sound{};
     std::vector<WorldMechanismActor> actors;
@@ -40,7 +47,11 @@ static bool world_mechanism_bind(unsigned kind){
         const auto count=catalog_field(type,"CurrentActivationCount",4);
         if(!medic_field_class(candidate.script_openable,"BoolProperty")||!medic_field_class(count,"IntProperty"))return false;
         candidate.count=*api.offset(count);
-    }else candidate.sound=world_actor_can_sound();
+    }else{
+        candidate.disable_saving=catalog_field(type,"DisableSaving",1);
+        if(!medic_field_class(candidate.disable_saving,"BoolProperty"))return false;
+        candidate.sound=world_actor_can_sound();
+    }
     binding=std::move(candidate);
     return true;
 }
@@ -60,6 +71,7 @@ static bool world_mechanism_method(void* type,std::string_view name,Weak& out){
 }
 static void world_mechanism_scan(void* pawn,WorldMechanismBinding& binding,unsigned kind){
     const auto type=api.weakget(&binding.type);
+    auto previous=std::move(binding.actors);
     binding.actors.clear();
     if(!type||!native_get_actors||!native_free)return;
     NativeActorArray entries{};
@@ -81,6 +93,12 @@ static void world_mechanism_scan(void* pawn,WorldMechanismBinding& binding,unsig
             const auto special=kind?ShrineGateKind::none:shrine_gate_kind(actor_class);
             if(special!=ShrineGateKind::none&&!bind_shrine_gate(actor_type,special,entry.shrine))continue;
             if(!kind&&!entry.shrine)world_mechanism_method(actor_type,"SetToOpenState",entry.saved_open);
+            if(kind){
+                world_mechanism_method(actor_type,"Restore to switched",entry.saved_on);
+                const auto old=std::ranges::lower_bound(previous,key,{},&WorldMechanismActor::key);
+                entry.observed=old!=previous.end()&&old->key==key&&api.weakget(&old->actor)==actor?
+                    old->observed:api.getbool(binding.active,actor,0);
+            }
             if(makeweak(entry.actor,actor)&&
                world_mechanism_method(actor_type,kind?"AnimateLeverPull":"OpenDoor",entry.enable)&&
                world_mechanism_method(actor_type,kind?"AnimateLeverReset":"CloseDoor",entry.disable))
@@ -141,8 +159,9 @@ static void world_mechanisms_capture(void* pawn,double time,std::vector<WP::Mech
     }
 }
 static void world_mechanism_apply(const WP::MechanismState& desired){
+    if(desired.kind>WP::MechanismKind::lever)return;
     const bool lever=desired.kind==WP::MechanismKind::lever;
-    const auto& binding=world_mechanisms.kinds[lever];
+    auto& binding=world_mechanisms.kinds[lever];
     const auto type=api.weakget(&binding.type);
     const auto it=std::ranges::lower_bound(binding.actors,desired.key,{},&WorldMechanismActor::key);
     if(it==binding.actors.end()||it->key!=desired.key||!type)return;
@@ -162,9 +181,61 @@ static void world_mechanism_apply(const WP::MechanismState& desired){
     api.setbool(binding.active,actor,desired.active,0);
     api.event(actor,event,nullptr);
     if(lever){
+        it->observed=desired.active;
         ++world_mechanism_levers;
         if(desired.active&&binding.sound)world_actor_sound(actor,"ActivateSound");
     }else ++world_mechanism_doors;
+}
+static bool world_host_lever_on(const WP::Guid& key){
+    const auto& states=world_progress.authoritative.mechanisms;
+    const WP::MechanismState target{key,WP::MechanismKind::lever};
+    const auto it=std::ranges::lower_bound(states,target,WP::mechanism_less);
+    return it!=states.end()&&it->kind==target.kind&&it->key==key&&it->active;
+}
+static void world_mechanisms_observe(void* save,double time){
+    for(unsigned kind=0;kind<world_mechanisms.kinds.size();++kind){
+        auto& binding=world_mechanisms.kinds[kind];
+        for(auto& entry:binding.actors){
+            const auto actor=api.weakget(&entry.actor);
+            if(!actor||entry.shrine)continue;
+            const bool active=api.getbool(binding.active,actor,0);
+            if(kind&&api.getbool(binding.disable_saving,actor,0)){
+                if(active&&!entry.observed&&!world_host_lever_on(entry.key)&&!world_elevator_controls(actor))
+                    world_interaction_enqueue(entry.key,WorldIntent::Action::temporary_lever,time);
+                entry.observed=active;
+                continue;
+            }
+            if(!active||(!kind&&api.getbool(binding.script_openable,actor,0)))continue;
+            world_interaction_queue(save,entry.key,kind?WorldIntent::Action::lever:WorldIntent::Action::door,time);
+        }
+    }
+}
+static bool world_mechanism_accept_guest(void* save,const WorldIntent::Message& message,const LifePeer& peer){
+    const bool temporary=message.action==WorldIntent::Action::temporary_lever;
+    const bool lever=temporary||message.action==WorldIntent::Action::lever;
+    const auto& binding=world_mechanisms.kinds[lever];
+    const auto it=std::ranges::lower_bound(binding.actors,message.key,{},&WorldMechanismActor::key);
+    if(it==binding.actors.end()||it->key!=message.key||it->shrine)return false;
+    const auto actor=api.weakget(&it->actor),enable=api.weakget(&it->enable);
+    const auto restore=api.weakget(&it->saved_on);
+    if(!actor||!enable||actor_is_destroying(actor)||(lever&&!restore)||
+       api.getbool(lever?binding.disable_saving:binding.script_openable,actor,0)!=temporary||
+       (temporary&&world_elevator_controls(actor))||
+       !(native_enemy_distance(native_actor_location(actor),peer.position)<=1200.*1200.))return false;
+    if(!temporary){
+        WorldProgressEdit<std::int32_t> edit{world_progress.actors,{},{},1};
+        std::memcpy(edit.key.data(),message.key.data(),sizeof(message.key));
+        if(!world_progress_put(save,edit,edit.after))return false;
+    }
+    if(!api.getbool(binding.active,actor,0)){
+        api.setbool(binding.active,actor,true,0);
+        if(lever){
+            api.event(actor,restore,nullptr);
+            if(binding.sound)world_actor_sound(actor,"ActivateSound");
+        }else own_set(actor,death_actor_tick,true);
+        api.event(actor,enable,nullptr);
+    }
+    return true;
 }
 static void world_mechanisms_step(void* pawn,double time){
     auto& state=world_mechanisms;

@@ -1,4 +1,6 @@
 #include "qdcoop/world_progress_personal.hpp"
+#include "qdcoop/world_interaction_intent.hpp"
+#include "qdcoop/door_trigger_intent.hpp"
 #include "qdcoop/persistent_travel.hpp"
 #include "qdcoop/elevator_intent.hpp"
 #include "qdcoop/cutscene_wire.hpp"
@@ -15,6 +17,7 @@ namespace Lift=qdcoop::elevator_intent;
 namespace Cine=qdcoop::cutscene;
 namespace Boss=qdcoop::boss_phase;
 namespace BI=qdcoop::boss_interact;
+namespace Intent=qdcoop::world_interaction_intent;
 static void check(bool condition,const char* label){
     if(condition)return;
     std::fprintf(stderr,"FAIL %s\n",label);
@@ -24,7 +27,9 @@ int main(){
     W::Snapshot source;
     for(int i=-100;i<100;++i)source.actors.push_back({{i,43,-7,99},i*3});
     source.names={{"Alpha",-172},{"Rich key \xe8\xbf\x9b\xe5\xba\xa6",0},{"zLast",INT32_MIN}};
-    source.mechanisms={{{4,3,2,1},W::MechanismKind::door,10000,true},{{1,2,3,4},W::MechanismKind::lever,0,false}};
+    source.mechanisms={{{4,3,2,1},W::MechanismKind::door,10000,true},{{1,2,3,4},W::MechanismKind::lever,0,false},
+                       {{8,9,10,11},W::MechanismKind::secret,0,true},{{11,10,9,8},W::MechanismKind::dagger_button,0,true},
+                       {{7,8,9,10},W::MechanismKind::gargoyle,0,false}};
     source.streaming.known=true;
     source.streaming.stacks[0]={{"/Game/RuinsLevel/Maps/LevelLists/GreenRuins.GreenRuins",7},
                                 {"/Game/RuinsLevel/Maps/LevelLists/AutumnIsland.AutumnIsland",-3}};
@@ -94,6 +99,43 @@ int main(){
           W::personal("Ippibi_State")&&!W::personal("UnlockedSouthGate"),"personal filters");
 
     const E::Envelope scope{111,222,333};
+    const W::Guid barricade{157137,190137,217137,227137};
+    check(W::actor_state_rolled_back({{barricade,1}},{}),"old guest barricade needs to be rebuilt");
+    check(W::actor_state_rolled_back({{barricade,3}},{{barricade,1}}),"decreased actor state needs reloading");
+    check(!W::actor_state_rolled_back({},{{barricade,1}})&&
+          !W::actor_state_rolled_back({{barricade,1}},{{barricade,1}}),"no reload for forward or equal state");
+    E::Packet intent_packet{};
+    Intent::Message intent;
+    check(Intent::encode(scope,{barricade,3,Intent::Action::breakable},intent_packet)&&
+          Intent::decode(scope,intent_packet,intent)&&intent.key==barricade&&intent.generation==3&&
+          intent.action==Intent::Action::breakable,"authenticated world interaction encoding");
+    check(!Intent::decode({111,222,334},intent_packet,intent)&&
+          !Intent::encode(scope,{W::personal_guids[1000],3,Intent::Action::door},intent_packet)&&
+          !Intent::encode(scope,{barricade,3,static_cast<Intent::Action>(8)},intent_packet),
+          "world interactions reject stale scope, personal GUIDs and unknown actions");
+    namespace Trigger=qdcoop::door_trigger_intent;
+    const Trigger::Message trigger{{-12,34,-56,78},12,7,false};
+    Trigger::Message observed;
+    check(Trigger::encode(scope,trigger,intent_packet)&&Trigger::decode(scope,intent_packet,observed)&&
+          observed.trigger==trigger.trigger&&observed.sequence==trigger.sequence&&observed.generation==7&&!observed.ack&&
+          !Trigger::decode({111,222,334},intent_packet,observed),"door triggers preserve scoped GUID and request sequence");
+    intent_packet.data[68]=2;
+    check(!Trigger::decode(scope,intent_packet,observed),"invalid door trigger acknowledgement rejected");
+    auto closing=trigger;
+    closing.close_door=barricade;
+    check(Trigger::encode(scope,closing,intent_packet)&&Trigger::decode(scope,intent_packet,observed)&&
+          observed.close_door==barricade&&observed.trigger==closing.trigger,"door close keeps its linked source and target");
+    closing.close_door=W::personal_guids[1000];
+    check(!Trigger::encode(scope,closing,intent_packet),"personal door close target refused");
+    const Lift::Motion moving{barricade,8,10.,{0.f,0.f,180.f},{0.f,0.f,0.f,1.f},2,true,true};
+    Lift::Motion elevator;
+    check(Lift::encode(scope,moving,intent_packet)&&Lift::decode(scope,intent_packet,elevator)&&
+          elevator.sequence==8&&elevator.running&&elevator.end&&elevator.position==moving.position,
+          "elevator motion includes the host's live platform position");
+    auto invalid_motion=moving;
+    invalid_motion.rotation[0]=2.f;
+    check(!Lift::decode({111,222,334},intent_packet,elevator)&&!Lift::encode(scope,invalid_motion,intent_packet),
+          "elevator motion rejects wrong scopes and invalid rotations");
     const W::Revision revision{5,W::digest(bytes)};
     std::vector<E::Packet> packets;
     const auto total=static_cast<unsigned>(bytes.size());

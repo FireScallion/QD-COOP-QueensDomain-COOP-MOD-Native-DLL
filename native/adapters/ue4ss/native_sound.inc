@@ -335,6 +335,31 @@ static bool sound_spawn(void* context,const Sound::Event& event,double time,void
     const auto attenuation=sound_voice_attenuation(sound,event.attenuation,time);
     if(!attenuation)return false;
     alignas(16) FactoryParameters args{};
+    constexpr auto heartbeat=Sound::assets::sound_id(
+        "/Game/Player/StatusEffectVisualizers/Weaken/Heartbeat_Cue.Heartbeat_Cue");
+    static_assert(heartbeat!=0);
+    if(event.asset==heartbeat&&event.origin==Sound::Origin::player){
+        if(event.slot>=remote_players.size())return true;
+        const auto& source=remote_players[event.slot];
+        const auto actor=api.weakget(&source.actor),attach=api.weakget(&sound_attached_hook.function);
+        const auto root=catalog_object_field(actor,"RootComponent");
+        const auto scene=world_input(world_projectile_scene);
+        if(!source.positioned||!actor||!root||!scene||!api.isa(root,scene)||!attach)return false;
+        if(native_enemy_distance(native_actor_location(context),native_actor_location(actor))>800.*800.)
+            return true;
+        factory_put(args,0,sound);
+        factory_put(args,8,root);
+        args[49]=1;
+        factory_put(args,52,std::min(event.volume,1.f)*.6f);
+        factory_put(args,56,event.pitch);
+        factory_put(args,60,event.start);
+        factory_put(args,64,attenuation);
+        args[80]=1;
+        sound_gameplay_event(gameplay,attach,args.data());
+        const auto result=AnimU::field<void*>(args.data(),88);
+        if(result&&api.isa(result,component))voice=result;
+        return true;
+    }
     factory_put(args,0,context);
     factory_put(args,8,sound);
     factory_put(args,16,event.position);

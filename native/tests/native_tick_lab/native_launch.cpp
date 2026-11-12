@@ -8,11 +8,29 @@
 #include <cstdint>
 static std::uintptr_t remote_module(DWORD pid,const wchar_t* name){auto snap=CreateToolhelp32Snapshot(TH32CS_SNAPMODULE|TH32CS_SNAPMODULE32,pid);if(snap==INVALID_HANDLE_VALUE)return 0;MODULEENTRY32W entry{};entry.dwSize=sizeof(entry);std::uintptr_t found=0;if(Module32FirstW(snap,&entry))do{if(!_wcsicmp(entry.szModule,name)){found=reinterpret_cast<std::uintptr_t>(entry.modBaseAddr);break;}}while(Module32NextW(snap,&entry));CloseHandle(snap);return found;}
 int wmain(int argc,wchar_t** argv){if(argc!=5&&argc!=6)return 2;std::wstring exe=argv[1],dll=argv[2],profile=argv[3],cwd=argv[4];
- wchar_t role[16]{};GetEnvironmentVariableW(L"QD_WORLD_ROLE",role,16);
- const wchar_t* renderer=(role[0]&&std::wcscmp(role,L"client")!=0)?L" -NullRHI":L" -d3d12 -RenderOffscreen";
+ wchar_t render[16]{};GetEnvironmentVariableW(L"QD_NATIVE_LAB_RENDER",render,16);
+ wchar_t role[16]{},render_role[16]{};
+ GetEnvironmentVariableW(L"QD_WORLD_ROLE",role,16);
+ GetEnvironmentVariableW(L"QD_NATIVE_LAB_RENDER_ROLE",render_role,16);
+ const bool low=std::wcscmp(render,L"low")==0&&std::wcscmp(role,render_role[0]?render_role:L"client")==0;
+ const wchar_t* renderer=low?L" -d3d11 -RenderOffscreen":L" -NullRHI";
  wchar_t audio[2]{};GetEnvironmentVariableW(L"QD_NATIVE_LAB_AUDIO",audio,2);
  const wchar_t* sound=audio[0]==L'1'?L"":L" -nosound";
- std::wstring command=L"\""+exe+L"\" -UserDir=\""+profile+L"\" -NoSplash -NoMoviePlayer"+renderer+L" -unattended"+sound+L" -windowed -ResX=1280 -ResY=720 -DefaultViewportMouseCaptureMode=NoCapture -ExecCmds=\"r.VSync 0,t.MaxFPS 90\"";
+ unsigned cap=30;
+ if(std::wcscmp(role,L"client")==0){
+    wchar_t rate[4]{};
+    if(const auto length=GetEnvironmentVariableW(L"QD_NATIVE_LAB_CLIENT_CAP",rate,4);length&&length<4){
+        wchar_t* end{};
+        const auto requested=std::wcstoul(rate,&end,10);
+        if(*end==L'\0'&&requested>=10&&requested<=30)cap=static_cast<unsigned>(requested);
+    }
+ }
+ std::wstring commands=L" -ExecCmds=\"t.MaxFPS "+std::to_wstring(cap);
+ if(low)commands+=L",r.ScreenPercentage 50,sg.ShadowQuality 0,sg.PostProcessQuality 0,sg.EffectsQuality 0";
+ commands+=L"\"";
+ std::wstring command=L"\""+exe+L"\" -UserDir=\""+profile+L"\" -NoSplash -NoMoviePlayer"+renderer+L" -unattended"+sound+
+     L" -windowed -ResX=640 -ResY=360 -DefaultViewportMouseCaptureMode=NoCapture"+commands;
+ std::printf("render_mode=%s\nfps_cap=%u\n",low?"low":"nullrhi",cap);
  if(argc==6){command+=L" ";command+=argv[5];}
  std::vector<wchar_t> buf(command.begin(),command.end());buf.push_back(0);STARTUPINFOW si{};si.cb=sizeof(si);PROCESS_INFORMATION pi{};
  if(!CreateProcessW(exe.c_str(),buf.data(),nullptr,nullptr,FALSE,CREATE_NO_WINDOW,nullptr,cwd.c_str(),&si,&pi)){return 3;}CloseHandle(pi.hThread);std::printf("owned_pid=%lu\n",static_cast<unsigned long>(pi.dwProcessId));std::printf("owned_tid=%lu\n",static_cast<unsigned long>(pi.dwThreadId));std::fflush(stdout);int result=4;void* memory=nullptr;

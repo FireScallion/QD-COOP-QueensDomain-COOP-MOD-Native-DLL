@@ -169,11 +169,11 @@ static unsigned checkpoint_flags(){return native_checkpoint.availability;}
 static unsigned checkpoint_availability(void* pawn){
     const auto& binding=native_checkpoint.save;
     const auto gi=api.weakget(&binding.gi);
-    if(!binding.script||!gi||!world_progress_ready()||!checkpoint_medic_idle()||
+    if(!binding.script||!gi||!checkpoint_medic_idle()||
        native_placed_item_custody_busy()||!medic_active(medic_runtime.save,pawn)||
        api.getbool(binding.async_flag,gi,0)||
        std::ranges::any_of(binding.travel_flags,[&](auto field){return api.getbool(field,pawn,0);}))return 0;
-    if(local_life.life.phase==LifePhase::standing)return 1;
+    if(local_life.life.phase==LifePhase::standing&&world_progress_ready())return 1;
     if(local_life.life.phase==LifePhase::down)return 2;
     return 0;
 }

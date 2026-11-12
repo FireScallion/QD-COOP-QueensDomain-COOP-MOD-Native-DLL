@@ -8,7 +8,7 @@ struct PersistentLoad {
     int active_at{},base_at{};
     AnimU::NameKey level{};
     ULONGLONG expires{};
-    bool original_rooted{},replacement_rooted{},opened{};
+    bool original_rooted{},replacement_rooted{},opened{},initial_alignment{};
 };
 struct PersistentTravel {
     PT::Passport local,remote;
@@ -16,15 +16,19 @@ struct PersistentTravel {
     WP::Inbox draft;
     PersistentLoad load;
     ULONGLONG next_publish{},next_prepare{},received_at{},missing_since{},host_clean_until{};
+    bool initial_alignment_done{};
 };
 static PersistentTravel persistent_travel;
+static bool world_guest_reload_completed(){return persistent_travel.initial_alignment_done;}
 
 static PT::Map persistent_map(void* world){
     std::string path;
     return catalog_path(world,path)?PT::identify(path):PT::Map::none;
 }
 static void prepare_persistent_world_scope(void* world){
-    world_stream.scripted_world=persistent_map(world)==PT::Map::intro;
+    const auto map=persistent_map(world);
+    world_stream.scripted_world=map==PT::Map::intro;
+    world_stream.new_world_arrival=host_role&&map==PT::Map::ruins;
 }
 static E::Envelope persistent_envelope(const PT::Passport& passport){
     return {envelope.room_high,envelope.room_low,PT::epoch(PT::canonical_epoch(passport.map),passport.nonce)};
@@ -43,7 +47,7 @@ static bool receive_persistent_travel(const ReceivedPacket& received,unsigned ki
         }
         return true;
     }
-    if(host_role||received.peer||kind!=WP::snapshot_kind||!state.remote.nonce)return false;
+    if(host_role||received.peer||kind!=WP::snapshot_kind||!state.remote.serial)return false;
     const auto& scope=state.remote_scope;
     if(scope.world==envelope.world)return false;
     WP::Part part;
@@ -155,7 +159,8 @@ static void* prepare_persistent_save(const LocalWorld& local,const WP::Snapshot&
     const auto save=medic_active(medic_runtime.save,local.pawn);
     const auto make=world_input(world_travel_create_save);
     if(!make){scan_world_inputs(4096);return nullptr;}
-    if(!save||!world_progress_ready()||!persistent_save_binding(local,load,save)||
+    if(!save||world_progress.fault||!world_progress.actors.field||!world_progress.items.field||
+       !persistent_save_binding(local,load,save)||
        !medic_params(world_travel_create_save,16,{{"SaveGameClass",8,0},{"ReturnValue",8,8}}))return nullptr;
     const auto image=reinterpret_cast<std::uintptr_t>(GetModuleHandleW(nullptr));
     const auto type=AnimU::field<std::uintptr_t>(save,16);
@@ -189,6 +194,7 @@ static NativeWorld::Phase finish_persistent_load(const LocalWorld& local,ULONGLO
     }
     if(!persistent_reference(load,load.original,load.original_rooted,false))return Phase::suspended;
     const auto nonce=load.target.nonce;
+    if(load.initial_alignment)persistent_travel.initial_alignment_done=true;
     load={};
     persistent_travel.draft={};
     reset_native_gameplay_scope();
@@ -261,16 +267,26 @@ static NativeWorld::Phase persistent_world_transition(const LocalWorld& local,UL
         ++persistent_host_changes;
         return Phase::suspended;
     }
-    if(!state.remote.nonce||state.remote_scope.world==envelope.world)
+    const bool same_world=state.remote_scope.world==envelope.world;
+    const bool initial_alignment=same_world&&world_progress.initial_reload&&!state.initial_alignment_done;
+    if(!state.remote.serial||(same_world&&!initial_alignment))
         return Phase::idle;
-    if(time-state.received_at>30000)return Phase::failed;
-    if(!local.pawn||time<state.next_prepare||!state.draft.complete())return Phase::idle;
+    if(!initial_alignment&&time-state.received_at>30000)return Phase::failed;
+    if(!local.pawn||time<state.next_prepare||(!initial_alignment&&!state.draft.complete()))return Phase::idle;
     state.next_prepare=time+250;
     const auto origin=persistent_map(local.world);
+    // Stock Continue can reload the host even before a shared archive exists.
+    // Follow that newer host world while the guest is still on its death screen.
+    const bool recovering_death=!same_world&&(local_life.life.phase==LifePhase::down||
+        (local_life.actor==local.pawn&&local_life.layout.dead&&api.getbool(local_life.layout.dead,local.pawn,0)));
     if(origin==PT::Map::none||!checkpoint_medic_idle()||checkpoint_worker.busy()||
-       reward_busy()||receipt_enabled||local_life.locked||local_life.pending||!(checkpoint_flags()&1))return Phase::idle;
+       reward_busy()||receipt_enabled||local_life.pending||
+       (!recovering_death&&(local_life.locked||
+         (!initial_alignment&&world_progress.applied.number&&!(checkpoint_flags()&1)))))
+        return Phase::idle;
     WP::Snapshot snapshot;
-    if(!state.draft.snapshot(snapshot)||(state.remote.map==PT::Map::ruins&&!snapshot.arrival.serial))return Phase::idle;
+    if(initial_alignment)snapshot=world_progress.authoritative;
+    else if(!state.draft.snapshot(snapshot)||(state.remote.map==PT::Map::ruins&&!snapshot.arrival.serial))return Phase::idle;
     persistent_stage=3;
     const auto open=world_input(world_cp_travel),gs=factory_object(factory_gameplay);
     if(!open||!gs||!medic_params(world_cp_travel,40,{{"WorldContextObject",8,0},{"LevelName",8,8},
@@ -280,6 +296,7 @@ static NativeWorld::Phase persistent_world_transition(const LocalWorld& local,UL
     const auto level=medic_name(package);
     if(!medic_name_is(level,package))return Phase::failed;
     PersistentLoad load;
+    load.initial_alignment=initial_alignment;
     const auto clone=prepare_persistent_save(local,snapshot,state.remote,origin,load);
     if(!clone)return Phase::idle;
     persistent_stage=4;

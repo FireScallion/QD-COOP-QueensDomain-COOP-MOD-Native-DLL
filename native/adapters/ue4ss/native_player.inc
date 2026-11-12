@@ -123,6 +123,10 @@ static bool receive_player(const ReceivedPacket& received,double time){
     const auto kind=A::wire::get<std::uint32_t>(received.packet,32);
     if(receive_persistent_travel(received,kind))return true;
     if(receive_elevator_intent(received,kind,time))return true;
+    if(receive_world_interaction(received,kind,time))return true;
+    if(receive_door_trigger(received,kind,time))return true;
+    if(receive_enemy_rest(received,kind,time))return true;
+    if(receive_story_reward(received,kind,time))return true;
     if(receive_world_scene(received,kind,time))return true;
     if(receive_native_boss(received,kind))return true;
     if(receive_boss_interact(received,kind,time))return true;

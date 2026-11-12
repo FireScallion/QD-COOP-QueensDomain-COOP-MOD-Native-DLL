@@ -495,6 +495,7 @@ static bool exact_path(Address object,const char* expected){
     return U::object_path(object,image+0x4A27F00,read_local,path)&&path==expected;
 }
 static int parameter_offset(Address function,const char* wanted,unsigned size){
+    if(!function)return -1;
     const auto property=U::find_property(function,image+0x4A27F00,wanted,read_local);
     const auto bytes=at<std::uint16_t>(function,182);
     if(!property||bytes>256||at<int>(property,60)!=static_cast<int>(size)||
@@ -688,7 +689,8 @@ static void world_step(){
                 remember(bone_lab_methods[i],object);
         }
         if(player_body_lab||player_gear_lab||player_rescue_lab||world_music_lab||world_story_lab||
-           world_progress_lab||world_library_lab||world_elevator_lab||world_elevator_guest_lab||world_castle_gate_lab||world_arena_lab)
+           world_progress_lab||world_library_lab||world_elevator_lab||world_elevator_guest_lab||world_castle_gate_lab||
+           world_arena_lab||world_boss_lab)
         for(unsigned i=0;i<body_methods.size();++i){
             const auto path=player_body_paths[i];
             if(leaf==path.substr(path.find_last_of('.')+1)&&exact_path(object,path.data()))

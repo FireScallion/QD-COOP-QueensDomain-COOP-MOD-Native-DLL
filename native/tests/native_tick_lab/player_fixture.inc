@@ -290,7 +290,7 @@ static void player_tick(void* engine,float dt){
         if(player_bone_lab&&host)hold_test_bone_charge();
         LARGE_INTEGER begin{},end{};
         QueryPerformanceCounter(&begin);
-        const auto limit=world_threat_lab?threat_lab_slots:world_boss_lab?4u:1u;
+        const auto limit=world_threat_lab?threat_lab_slots:world_boss_lab?E::capacity:1u;
         const auto world=core.pump_world(engine,dt,limit);
         QueryPerformanceCounter(&end);
         if(world==WorldPhase::world_changed||world==WorldPhase::failed){phase=82;return;}
@@ -343,7 +343,7 @@ static void player_tick(void* engine,float dt){
             if(world_barrier_lab&&!run_world_barrier_stage())break;
             if(world_arena_lab&&!run_world_arena_stage(reinterpret_cast<Address>(engine)))break;
             if(world_cutscene_lab&&!run_world_cutscene_stage())break;
-            if(world_boss_lab&&!run_world_boss_stage())break;
+            if(world_boss_lab&&!run_world_boss_stage(reinterpret_cast<Address>(engine)))break;
             if(world_boss_interact_lab&&!run_world_boss_interact_stage())break;
             if(world_pause_probe&&host&&!probe_stock_pause())break;
             if(world_pause_lab&&!run_world_pause_stage())break;

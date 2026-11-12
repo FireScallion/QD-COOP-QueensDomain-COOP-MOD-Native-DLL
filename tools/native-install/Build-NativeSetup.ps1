@@ -8,8 +8,8 @@ Add-Type -AssemblyName System.IO.Compression.FileSystem
 $source = (Resolve-Path -LiteralPath $RuntimeZip).ProviderPath
 $destination = if ([IO.Path]::IsPathRooted($OutputZip)) { [IO.Path]::GetFullPath($OutputZip) }
     else { [IO.Path]::GetFullPath((Join-Path (Get-Location).ProviderPath $OutputZip)) }
-$runtimeHash = 'B0DEF2F88996D9CED71898C9CB3A999FD104EDD99C05C7358FDFF5DBBAB0A5B9'
-if ((Get-FileHash -LiteralPath $source).Hash -ne $runtimeHash) { throw 'Expected the verified M131 runtime ZIP.' }
+$runtimeHash = '52AAE03811D3D2071C0DA47ADE060DE3D588A1CD2B0842738589BDA53CAD1CEF'
+if ((Get-FileHash -LiteralPath $source).Hash -ne $runtimeHash) { throw 'Expected the verified M133 runtime ZIP.' }
 if (Test-Path -LiteralPath $destination) { throw "Output already exists: $destination" }
 
 $tempParent = (Resolve-Path -LiteralPath ([IO.Path]::GetTempPath())).ProviderPath

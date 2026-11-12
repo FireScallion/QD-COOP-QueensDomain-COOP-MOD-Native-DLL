@@ -2,8 +2,10 @@ namespace Lift=qdcoop::elevator_intent;
 struct WorldElevatorActor {
     Weak actor;
     std::array<WP::Guid,2> keys{};
-    bool running{};
+    bool running{},controlled{};
+    double next_motion{},finished_until{};
 };
+struct ElevatorMotionTrack {Lift::Motion current,previous;double received{};};
 struct ElevatorLeverLease {Weak lever;bool original{};};
 struct ElevatorPending {Lift::Message request;double expires{},next_send{};};
 struct ElevatorPeerRequests {
@@ -15,15 +17,17 @@ struct ElevatorPeerRequests {
 struct WorldElevators {
     Weak type,lever_type,root_type;
     void *running{},*end{},*reverse{},*locked{},*silence{};
-    int guids{},mode{},onboard{},root{};
+    int guids{},mode{},onboard{},root{},index{-1};
     std::array<int,2> levers{};
     std::vector<WorldElevatorActor> actors;
     std::vector<ElevatorLeverLease> leases;
+    std::vector<ElevatorMotionTrack> motion;
     WP::Streaming streams;
     std::array<ElevatorPending,4> pending{};
     std::array<ElevatorPeerRequests,Player::slots-1> peers{};
-    std::uint64_t serial{};
-    double next_scan{},next_apply{},discover_until{};
+    std::uint64_t serial{},motion_sequence{};
+    double next_scan{},next_apply{},discover_until{},next_motion_bind{};
+    bool motion_bound{};
 };
 static WorldElevators world_elevators;
 
@@ -66,8 +70,19 @@ static bool world_elevator_bind(void* type,void* lever){
     state.mode=*api.offset(mode);
     state.onboard=*api.offset(onboard);
     state.root=*api.offset(root);
+    const auto index=catalog_field(type,"CurrentPathIndex",4);
+    if(medic_field_class(index,"IntProperty"))state.index=*api.offset(index);
     state.levers=levers;
     return true;
+}
+static void world_elevator_end_control(void* actor,bool notify){
+    const auto& state=world_elevators;
+    api.setbool(state.running,actor,false,0);
+    if(const auto stop=world_input(world_elevator_stop_fx);stop&&!*api.parms(stop))api.event(actor,stop,nullptr);
+    if(notify){
+        if(const auto stopped=world_input(world_elevator_stopped);stopped&&!*api.parms(stopped))
+            api.event(actor,stopped,nullptr);
+    }else if(const auto update=world_input(world_elevator_update))api.event(actor,update,nullptr);
 }
 static void elevator_release_lever(const ElevatorLeverLease& lease){
     const auto lever=api.weakget(&lease.lever),flag=world_elevators.silence;
@@ -75,6 +90,8 @@ static void elevator_release_lever(const ElevatorLeverLease& lease){
     ++world_elevator_releases;
 }
 static void world_elevator_cleanup(){
+    for(const auto& entry:world_elevators.actors)
+        if(entry.controlled)if(const auto actor=api.weakget(&entry.actor))world_elevator_end_control(actor,false);
     for(const auto& lease:world_elevators.leases)elevator_release_lever(lease);
     world_elevators={};
 }
@@ -98,6 +115,11 @@ static void world_elevator_scan(void* pawn,void* type){
             if(guids.count>=2&&!WP::personal(keys[1]))entry.keys[1]=keys[1];
             const auto old=std::ranges::find_if(previous,[&](const auto& prior){return api.weakget(&prior.actor)==actor;});
             entry.running=old!=previous.end()?old->running:api.getbool(state.running,actor,0);
+            if(old!=previous.end()){
+                entry.controlled=old->controlled;
+                entry.next_motion=old->next_motion;
+                entry.finished_until=old->finished_until;
+            }
             state.actors.push_back(entry);
         }
     if(actors.data)native_free(actors.data);
@@ -147,6 +169,16 @@ template<class Visit>static void visit_elevator_levers(void* actor,Visit visit){
         const auto levers=static_cast<void* const*>(array.data);
         for(int i=0;i<array.count;++i)add(levers[i]);
     }
+}
+static bool world_elevator_controls(void* lever){
+    for(const auto& entry:world_elevators.actors){
+        const auto actor=api.weakget(&entry.actor);
+        if(!actor)continue;
+        bool found=false;
+        visit_elevator_levers(actor,[&](void* candidate){found|=candidate==lever;});
+        if(found)return true;
+    }
+    return false;
 }
 static void world_elevator_busy(){
     auto& state=world_elevators;
@@ -230,6 +262,21 @@ static bool elevator_accept_request(const Lift::Message& request,const LifePeer&
     return api.getbool(state.running,actor,0);
 }
 static bool receive_elevator_intent(const ReceivedPacket& received,unsigned kind,double time){
+    if(kind==Lift::motion_kind){
+        Lift::Motion motion;
+        if(host_role||received.peer||!(active_peer_mask&1u)||!Lift::decode(envelope,received.packet,motion))return true;
+        auto& tracks=world_elevators.motion;
+        auto track=std::ranges::find_if(tracks,[&](const auto& item){return item.current.key==motion.key;});
+        if(track==tracks.end()){
+            if(tracks.size()>=256)return true;
+            tracks.push_back({motion,{},time});
+            ++elevator_motion_received;
+        }else if(motion.sequence>track->current.sequence&&motion.time>=track->current.time){
+            *track={motion,track->current,time};
+            ++elevator_motion_received;
+        }
+        return true;
+    }
     if(kind!=Lift::kind)return false;
     Lift::Message message{};
     if(!active_peer_mask||!Lift::decode(envelope,received.packet,message)||WP::personal(message.key))return true;
@@ -270,14 +317,118 @@ static bool receive_elevator_intent(const ReceivedPacket& received,unsigned kind
     if(response.key==message.key&&response.end==message.end)send_elevator_intent(response,1u<<received.peer);
     return true;
 }
+static bool elevator_motion_bind(double time){
+    auto& state=world_elevators;
+    if(state.motion_bound)return true;
+    if(state.index<0||time<state.next_motion_bind)return false;
+    state.next_motion_bind=time+.5;
+    if(!world_input(world_barrier_relative)||!world_input(world_relative_set)||!world_input(world_elevator_stop_fx))
+        return false;
+    state.motion_bound=medic_params(world_barrier_relative,48,{{"ReturnValue",48,0}})&&
+        medic_params(world_relative_set,189,{{"NewTransform",48,0},{"bSweep",1,48},
+            {"SweepHitResult",136,52},{"bTeleport",1,188}})&&
+        medic_params(world_elevator_cancel,0,{})&&medic_params(world_elevator_started,0,{})&&
+        medic_params(world_elevator_stopped,0,{})&&medic_params(world_elevator_start_fx,0,{})&&
+        medic_params(world_elevator_stop_fx,0,{});
+    return state.motion_bound;
+}
+static void* elevator_motion_root(void* actor){
+    const auto root=AnimU::field<void*>(actor,world_elevators.root);
+    const auto type=api.weakget(&world_elevators.root_type);
+    return root&&type&&api.isa(root,type)?root:nullptr;
+}
+static void elevator_publish_motion(void* actor,WorldElevatorActor& entry,bool running,double time){
+    auto& state=world_elevators;
+    if(running!=entry.running){
+        entry.next_motion=0.;
+        if(!running)entry.finished_until=time+1.;
+    }
+    if(time<entry.next_motion||(!running&&time>=entry.finished_until)||state.motion_sequence==UINT64_MAX)return;
+    const auto root=elevator_motion_root(actor);
+    if(!root)return;
+    const auto index=AnimU::field<int>(actor,state.index);
+    if(index<0)return;
+    alignas(16) FactoryParameters args{};
+    api.event(root,world_input(world_barrier_relative),args.data());
+    const auto transform=AnimU::field<std::array<float,12>>(args.data(),0);
+    Lift::Motion motion{entry.keys[0],++state.motion_sequence,time,{transform[4],transform[5],transform[6]},
+        {transform[0],transform[1],transform[2],transform[3]},static_cast<unsigned>(index),running,
+        running?!api.getbool(state.reverse,actor,0):api.getbool(state.end,actor,0)};
+    E::Packet packet{};
+    if(Lift::encode(envelope,motion,packet)&&send(packet,active_peer_mask)){
+        entry.next_motion=time+.10;
+        ++elevator_motion_sent;
+    }
+}
+static bool elevator_follow_motion(void* actor,WorldElevatorActor& entry,double time){
+    auto& state=world_elevators;
+    const auto track=std::ranges::find_if(state.motion,[&](const auto& item){return item.current.key==entry.keys[0];});
+    if(track==state.motion.end()||time-track->received>.85){
+        if(entry.controlled){
+            world_elevator_end_control(actor,false);
+            entry.controlled=false;
+        }
+        return false;
+    }
+    const auto& motion=track->current;
+    const auto root=elevator_motion_root(actor);
+    if(!root)return false;
+    const bool local_running=api.getbool(state.running,actor,0);
+    if(!motion.running&&!entry.controlled&&local_running)return false;
+    if(motion.running&&!entry.controlled){
+        if(local_running)api.event(actor,world_input(world_elevator_cancel),nullptr);
+        api.setbool(state.running,actor,true,0);
+        api.setbool(state.reverse,actor,!motion.end,0);
+        if(!local_running){
+            api.event(actor,world_input(world_elevator_started),nullptr);
+            api.event(actor,world_input(world_elevator_start_fx),nullptr);
+        }
+        entry.controlled=true;
+        ++world_elevator_moves;
+    }
+    auto target=motion.position;
+    const auto& previous=track->previous;
+    const auto period=motion.time-previous.time;
+    if(motion.running&&previous.running&&previous.end==motion.end&&period>=.04&&period<=.35){
+        const auto& clock=remote_players[0].clock;
+        const auto sample=clock.initialized?motion.time+clock.offset:track->received;
+        const auto ahead=static_cast<float>(std::clamp(time-sample,0.,.12)/period);
+        for(unsigned i=0;i<target.size();++i)
+            target[i]+=std::clamp((motion.position[i]-previous.position[i])*ahead,-160.f,160.f);
+    }
+    alignas(16) FactoryParameters args{};
+    api.event(root,world_input(world_barrier_relative),args.data());
+    auto transform=AnimU::field<std::array<float,12>>(args.data(),0);
+    const std::array<float,3> position{transform[4],transform[5],transform[6]};
+    float alignment{};
+    for(unsigned i=0;i<4;++i)alignment+=motion.rotation[i]*transform[i];
+    const float position_tolerance=motion.running?1.f:.0001f;
+    if(stream_distance(target,position)>position_tolerance||std::abs(alignment)<.99995f){
+        std::copy(motion.rotation.begin(),motion.rotation.end(),transform.begin());
+        std::copy(target.begin(),target.end(),transform.begin()+4);
+        args={};
+        factory_put(args,0,transform);
+        api.event(root,world_input(world_relative_set),args.data());
+    }
+    const auto path_index=static_cast<int>(motion.index);
+    std::memcpy(static_cast<unsigned char*>(actor)+state.index,&path_index,sizeof(path_index));
+    if(!motion.running){
+        api.setbool(state.end,actor,motion.end,0);
+        api.setbool(state.reverse,actor,motion.end,0);
+        if(entry.controlled){
+            world_elevator_end_control(actor,true);
+            entry.controlled=false;
+        }
+    }
+    return true;
+}
 static void world_elevator_step(void* pawn,double time){
     auto& state=world_elevators;
     if(host_role)
         for(unsigned peer=0;peer<state.peers.size();++peer)
             if(state.peers[peer].generation&&!(active_peer_mask&(1u<<peer)))state.peers[peer]={};
     if(!active_peer_mask){
-        for(const auto& lease:state.leases)elevator_release_lever(lease);
-        state.leases.clear();
+        world_elevator_cleanup();
         return;
     }
     if(!native_get_actors||!native_free)return;
@@ -287,8 +438,9 @@ static void world_elevator_step(void* pawn,double time){
         const auto& streams=host_role?world_stream.published:world_progress.authoritative.streaming;
         if(state.streams!=streams){state.streams=streams;state.discover_until=time+4.;}
         if(time<state.discover_until)
-            for(unsigned i=world_elevator_type;i<=world_elevator_location;++i)
+            for(unsigned i=world_elevator_type;i<=world_elevator_stop_fx;++i)
                 if(!world_input(i)){scan_world_inputs(4096);break;}
+        std::erase_if(state.motion,[&](const auto& track){return time-track.received>2.;});
         const auto type=world_input(world_elevator_type),lever=world_input(world_elevator_lever);
         if(world_elevator_bind(type,lever)){
             world_elevator_scan(pawn,type);
@@ -297,12 +449,20 @@ static void world_elevator_step(void* pawn,double time){
     }
     const bool apply=!host_role&&world_progress_ready()&&time>=state.next_apply;
     if(apply)state.next_apply=time+.25;
+    const bool motion_bound=elevator_motion_bind(time);
     for(auto& entry:state.actors){
         const auto actor=api.weakget(&entry.actor);
-        if(actor&&!host_role&&!entry.running&&api.getbool(state.running,actor,0)&&
-           !AnimU::field<std::uint8_t>(actor,state.mode))
-            elevator_queue_request(entry,!api.getbool(state.reverse,actor,0),time);
-        if(actor&&apply)world_elevator_apply(actor,entry);
+        if(actor&&!AnimU::field<std::uint8_t>(actor,state.mode)){
+            const bool running=api.getbool(state.running,actor,0);
+            if(host_role){
+                if(motion_bound)elevator_publish_motion(actor,entry,running,time);
+            }else{
+                if(!entry.running&&running&&!entry.controlled)
+                    elevator_queue_request(entry,!api.getbool(state.reverse,actor,0),time);
+                if(!(motion_bound&&elevator_follow_motion(actor,entry,time))&&apply)
+                    world_elevator_apply(actor,entry);
+            }
+        }else if(actor&&apply)world_elevator_apply(actor,entry);
         const bool running=actor&&api.getbool(state.running,actor,0);
         busy_changed|=entry.running!=running;
         entry.running=running;

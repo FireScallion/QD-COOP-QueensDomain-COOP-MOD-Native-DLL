@@ -125,7 +125,8 @@ bool tick(Address title_box,Address panel,Address rows,bool visible){
     }else if(stage==6){
         const auto port=field(rows,0);
         if(!port||!heading_is(panel,L"Host game")||!height_is(panel,rows,440.f)||!named_label(rows,L"Room port")||
-           !named_button(rows,L"Players: 2")||!named_button(rows,L"Host game"))return false;
+           !named_label(rows,L"Players: 2")||!named_button(rows,L"-")||!named_button(rows,L"+")||
+           !named_button(rows,L"Host game"))return false;
         host_layout=true;
         ui.label(port,L"45678",TitleUi::edit_set);
         if(!set_language(L"zh-Hans"))return false;

@@ -323,11 +323,13 @@ static bool world_arrival_place(void* pawn,const WP::Arrival& desired){
     api.event(movement,stop,nullptr);
     return true;
 }
+static bool world_story_shop_local(void* pawn);
 static void world_stream_step(void* pawn,double time){
     auto& state=world_stream;
     const auto& desired=world_progress.authoritative.streaming;
     const auto& arrival=world_progress.authoritative.arrival;
     if(host_role)return;
+    if(world_story_shop_local(pawn))return;
     const auto& owner=life_peers[0];
     const bool ready=active_peer_mask&&desired.known&&world_progress_ready()&&checkpoint_medic_idle()&&!rollback_busy();
     const bool standing=ready&&!local_life.locked&&!local_life.pending&&fresh_life(owner,LifePhase::standing,time);

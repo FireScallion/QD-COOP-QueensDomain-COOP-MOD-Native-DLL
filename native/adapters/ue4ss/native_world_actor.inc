@@ -1,3 +1,10 @@
+namespace WorldIntent=qdcoop::world_interaction_intent;
+static bool world_mechanism_method(void* type,std::string_view name,Weak& out);
+static void world_mechanisms_observe(void* save,double time);
+static bool world_mechanism_accept_guest(void* save,const WorldIntent::Message&,const LifePeer&);
+static bool world_special_accept_guest(const WorldIntent::Message&,const LifePeer&);
+static void world_special_observe(void* save,double time);
+static bool world_host_lever_on(const WP::Guid& key);
 using WorldArrayClear=void(*)(void*,const void*);
 struct WorldArray {
     const void* data{};
@@ -12,14 +19,19 @@ struct WorldChestBinding {
     WorldArrayClear clear{};
     bool sound{};
 };
+struct WorldBreakable {WP::Guid key;Weak actor;bool barricade{};};
+struct WorldInteractionPending {WP::Guid key;WorldIntent::Action action;double expires{},next_send{};};
 struct WorldActorRuntime {
     WorldChestBinding chest;
     std::vector<WP::Guid> changed;
     std::vector<Weak> queue;
     double next_scan{},expires{};
     std::vector<Weak> breakable_queue,breakables_restored;
+    std::vector<WorldBreakable> breakables;
+    std::vector<WorldInteractionPending> pending;
+    std::vector<WP::Guid> live_breaks;
     WP::Revision breakable_revision;
-    double next_breakable_scan{};
+    double next_breakable_scan{},next_breakable_index{},next_observe{};
 };
 static WorldActorRuntime world_actor;
 
@@ -144,6 +156,143 @@ static bool world_actor_saved_positive(const std::vector<WP::ActorState>& states
     const auto it=std::ranges::lower_bound(states,key,{},&WP::ActorState::key);
     return it!=states.end()&&it->key==key&&it->value>0;
 }
+static bool world_breakable_animate(void* actor,bool barricade){
+    const auto type=AnimU::field<void*>(actor,16);
+    const auto event=world_input(barricade?world_breakable_hit:world_breakable_break);
+    if(!event||*api.parms(event)||!api.isa(actor,AnimU::field<void*>(event,32)))return false;
+    if(barricade){
+        const auto hp=catalog_field(type,"HP",4);
+        if(!medic_field_class(hp,"FloatProperty"))return false;
+        const float zero{};
+        std::memcpy(static_cast<unsigned char*>(actor)+*api.offset(hp),&zero,sizeof(zero));
+    }
+    api.event(actor,event,nullptr);
+    return true;
+}
+static bool world_breakable_positive(void* save,const WP::Guid& key){
+    const auto& binding=medic_runtime.save;
+    const auto& map=world_progress.actors;
+    std::int32_t value{};
+    return binding.find(map.address(save),map.field,key.data(),&value)&&value>0;
+}
+static bool world_interaction_enqueue(const WP::Guid& key,WorldIntent::Action action,double time){
+    auto& pending=world_actor.pending;
+    if(pending.size()>=64||std::ranges::any_of(pending,[&](const auto& request){return request.key==key;}))return false;
+    pending.push_back({key,action,time+4.,0.});
+    ++world_interactions_queued;
+    return true;
+}
+static bool world_interaction_queue(void* save,const WP::Guid& key,WorldIntent::Action action,double time){
+    return !world_actor_saved_positive(world_progress.authoritative.actors,key)&&world_breakable_positive(save,key)&&
+           world_interaction_enqueue(key,action,time);
+}
+static void world_breakables_index(void* pawn,double time){
+    auto& state=world_actor;
+    if(time<state.next_breakable_index||!native_get_actors||!native_free)return;
+    state.next_breakable_index=time+1.;
+    const auto restore=world_input(world_actor_restore);
+    for(const auto input:{world_actor_restore,world_breakable_barricade,world_breakable_permanent,
+                         world_breakable_hit,world_breakable_break})
+        if(!world_input(input)){scan_world_inputs(2048);break;}
+    if(!restore)return;
+    const auto base=AnimU::field<void*>(restore,32);
+    const auto guids=world_actor_array(base,"GUIDs",16,"/Script/CoreUObject.Guid");
+    if(!guids.field)return;
+    state.breakables.clear();
+    for(const auto kind:{world_breakable_barricade,world_breakable_permanent}){
+        const auto type=world_input(kind);
+        if(!type||!catalog_subclass(type,base))continue;
+        NativeActorArray entries{};
+        native_get_actors(pawn,type,&entries);
+        if(entries.data&&entries.count>=0&&entries.count<=8192&&entries.capacity>=entries.count)
+            for(int i=0;i<entries.count;++i){
+                const auto actor=entries.data[i];
+                if(!actor||!api.isa(actor,type)||actor_is_destroying(actor))continue;
+                const auto keys=AnimU::field<WorldArray>(actor,guids.offset);
+                if(!keys.valid(32)||!keys.count)continue;
+                const auto key=*static_cast<const WP::Guid*>(keys.data);
+                if(key==WP::Guid{}||WP::personal(key))continue;
+                WorldBreakable entry{key,{},kind==world_breakable_barricade};
+                if(makeweak(entry.actor,actor))state.breakables.push_back(entry);
+            }
+        if(entries.data)native_free(entries.data);
+    }
+    std::ranges::sort(state.breakables,{},&WorldBreakable::key);
+    for(auto it=state.breakables.begin();it!=state.breakables.end();){
+        const auto end=std::upper_bound(it,state.breakables.end(),it->key,
+            [](const WP::Guid& key,const WorldBreakable& entry){return key<entry.key;});
+        it=end==it+1?end:state.breakables.erase(it,end);
+    }
+    world_breakable_index_size=static_cast<unsigned>(state.breakables.size());
+}
+static void world_breakables_observe(void* pawn,void* save,double time){
+    auto& state=world_actor;
+    if(!host_role&&world_progress.applied.number&&!world_progress.fault&&!world_progress.initial_reload&&local_life_pose.generation&&
+       local_life.life.phase==LifePhase::standing){
+        const auto& host=world_progress.authoritative.actors;
+        if(time>=state.next_observe||time>=world_progress.next_apply||
+           (world_progress.inbox.revision().number>world_progress.applied.number&&world_progress.inbox.complete())){
+            state.next_observe=time+.12;
+            for(const auto& entry:state.breakables)
+                if(world_interaction_queue(save,entry.key,WorldIntent::Action::breakable,time))
+                    state.breakables_restored.push_back(entry.actor);
+            world_mechanisms_observe(save,time);
+            world_special_observe(save,time);
+        }
+        std::erase_if(state.pending,[&](const auto& pending){
+            return time>=pending.expires||(pending.action==WorldIntent::Action::temporary_lever?
+                world_host_lever_on(pending.key):world_actor_saved_positive(host,pending.key));
+        });
+        for(auto& pending:state.pending){
+            if(time<pending.next_send)continue;
+            E::Packet packet{};
+            if(WorldIntent::encode(envelope,{pending.key,local_life_pose.generation,pending.action},packet)&&send(packet,1)){
+                pending.next_send=time+.25;
+                ++world_interactions_sent;
+            }
+        }
+    }
+    world_breakables_index(pawn,time);
+}
+static bool receive_world_interaction(const ReceivedPacket& received,unsigned kind,double time){
+    if(kind!=WorldIntent::kind)return false;
+    ++world_interactions_received;
+    world_interaction_stage=1;
+    if(!host_role||received.peer>=Player::slots-1||!(active_peer_mask&(1u<<received.peer))||
+       !world_progress_ready()||!checkpoint_medic_idle())return true;
+    WorldIntent::Message message;
+    if(!WorldIntent::decode(envelope,received.packet,message))return true;
+    world_interaction_stage=2;
+    const auto& peer=life_peers[received.peer+1];
+    if(peer.generation!=message.generation||!fresh_life(peer,LifePhase::standing,time))return true;
+    world_interaction_stage=3;
+    const auto save=api.weakget(&world_progress.save);
+    if(!save||(message.action!=WorldIntent::Action::temporary_lever&&world_breakable_positive(save,message.key)))return true;
+    if(message.action!=WorldIntent::Action::breakable){
+        const bool accepted=message.action>=WorldIntent::Action::secret?world_special_accept_guest(message,peer):
+            world_mechanism_accept_guest(save,message,peer);
+        if(accepted){
+            world_progress.next_capture=0.;
+            ++world_interactions_applied;
+        }
+        return true;
+    }
+    const auto& actors=world_actor.breakables;
+    const auto entry=std::ranges::lower_bound(actors,message.key,{},&WorldBreakable::key);
+    if(entry==actors.end()||entry->key!=message.key)return true;
+    world_interaction_stage=4;
+    const auto actor=api.weakget(&entry->actor);
+    const auto range=entry->barricade?12000.:4500.;
+    if(actor&&!actor_is_destroying(actor)&&native_enemy_distance(native_actor_location(actor),peer.position)<=range*range){
+        world_interaction_stage=5;
+        if(world_breakable_animate(actor,entry->barricade)){
+            world_progress.next_capture=0.;
+            ++world_interactions_applied;
+            world_interaction_stage=6;
+        }
+    }
+    return true;
+}
 static void world_breakables_step(void* pawn,double time){
     auto& state=world_actor;
     const bool scan=state.breakable_revision!=world_progress.applied||time>=state.next_breakable_scan;
@@ -158,6 +307,15 @@ static void world_breakables_step(void* pawn,double time){
     if(!guids.field||!cache.field||!clear)return;
     const auto& authoritative=world_progress.authoritative.actors;
     if(scan){
+        if(state.breakable_revision.number&&state.breakable_revision!=world_progress.applied){
+            state.live_breaks.clear();
+            for(const auto& entry:state.breakables)
+                if(world_actor_saved_positive(authoritative,entry.key)&&
+                   std::ranges::none_of(state.breakables_restored,[&](const Weak& key){
+                       const auto actor=api.weakget(&key);
+                       return actor&&actor==api.weakget(&entry.actor);
+                   }))state.live_breaks.push_back(entry.key);
+        }
         state.breakable_revision=world_progress.applied;
         state.next_breakable_scan=time+2.;
         state.breakable_queue.clear();
@@ -189,8 +347,16 @@ static void world_breakables_step(void* pawn,double time){
         const auto actor=api.weakget(&key);
         if(!actor||!AnimU::field<WorldArray>(actor,cache.offset).valid(64))continue;
         state.breakables_restored.push_back(key);
-        clear(cache.address(actor),cache.field);
-        api.event(actor,restore,nullptr);
+        const auto keys=AnimU::field<WorldArray>(actor,guids.offset);
+        const auto live=keys.valid(32)&&keys.count?std::ranges::find(state.live_breaks,*static_cast<const WP::Guid*>(keys.data)):
+            state.live_breaks.end();
+        const auto barricade=world_input(world_breakable_barricade);
+        const bool animated=live!=state.live_breaks.end()&&world_breakable_animate(actor,barricade&&api.isa(actor,barricade));
+        if(live!=state.live_breaks.end())state.live_breaks.erase(live);
+        if(!animated){
+            clear(cache.address(actor),cache.field);
+            api.event(actor,restore,nullptr);
+        }
         ++world_actor_breakables;
     }
 }

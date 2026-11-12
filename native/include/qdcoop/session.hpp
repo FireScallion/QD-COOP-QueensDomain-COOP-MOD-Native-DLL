@@ -6,7 +6,7 @@
 namespace qdcoop {
 constexpr std::size_t max_players = 4;
 constexpr std::size_t max_session_identities = 64;
-constexpr std::uint32_t protocol_version = 0x4e340001; // N4, incompatible with legacy wire
+constexpr std::uint32_t protocol_version = 0x4e340003;
 enum class Result : std::uint32_t {
     ok, duplicate, invalid, full, stale, not_ready, busy, conflict,
     backpressure, pending, recovery_required, closed, exhausted

@@ -11,7 +11,7 @@
 extern "C" {
 #endif
 #define QD_NATIVE_ABI 1u
-#define QD_NATIVE_PROTOCOL 0x4e340001u
+#define QD_NATIVE_PROTOCOL 0x4e340003u
 typedef struct QDNativeSession QDNativeSession;
 typedef struct QDId { uint64_t high, low; } QDId;
 typedef struct QDMemberRef { QDId session, player; uint64_t connection; } QDMemberRef;

@@ -36,6 +36,7 @@ bool remote_mode{};
 bool reopen_mode{};
 bool source_mode{};
 bool source_ui_mode{};
+bool guest_source_mode{};
 bool save_retry_mode{},save_lock_started{};
 std::array<HANDLE,2> save_locks{};
 ULONGLONG save_unlock_at{};
@@ -252,6 +253,10 @@ bool lock_suspend_saves(ULONGLONG time){
     if(directory.size()!=expected.size()+17||_wcsnicmp(directory.c_str(),expected.c_str(),expected.size())||
        !std::all_of(directory.begin()+static_cast<std::ptrdiff_t>(expected.size()),directory.end(),
           [](wchar_t digit){return digit>=L'0'&&digit<=L'9';}))return false;
+    constexpr auto journal=L"/World1.sav.qdrescue-native-v1";
+    const auto offline=expected.substr(0,expected.size()-1);
+    if(GetFileAttributesW((directory+journal).c_str())==INVALID_FILE_ATTRIBUTES&&
+       GetFileAttributesW((offline+journal).c_str())!=INVALID_FILE_ATTRIBUTES)directory=offline;
     for(unsigned i=0;i<save_locks.size();++i){
         const auto slot=directory+L"/World1_Suspend_"+std::to_wstring(i)+L".sav";
         save_locks[i]=CreateFileW(slot.c_str(),GENERIC_READ,0,nullptr,OPEN_EXISTING,FILE_ATTRIBUTE_NORMAL,nullptr);
@@ -364,6 +369,7 @@ bool step(Address instance,ULONGLONG time){
         remote_mode=environment_title(L"QD_PLACED_REMOTE",mode,2)&&mode[0]==L'1';
         source_mode=remote_mode&&environment_title(L"QD_PLACED_SOURCE",mode,2)&&mode[0]==L'1';
         source_ui_mode=source_mode&&environment_title(L"QD_PLACED_STOCK_UI",mode,2)&&mode[0]==L'1';
+        guest_source_mode=source_mode&&environment_title(L"QD_PLACED_GUEST_SOURCE",mode,2)&&mode[0]==L'1';
         reopen_mode=remote_mode&&environment_title(L"QD_PLACED_REOPEN",mode,2)&&mode[0]==L'1';
         save_retry_mode=reopen_mode||(environment_title(L"QD_PLACED_SAVE_RETRY",mode,2)&&mode[0]==L'1');
     }

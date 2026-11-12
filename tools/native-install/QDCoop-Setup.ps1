@@ -354,7 +354,7 @@ try {
     }
     switch ($Action) {
         Install {
-            Write-Host 'QD COOP M131 installed. Start QueensDomain from Steam.'
+            Write-Host 'QD COOP M133 installed. Start QueensDomain from Steam.'
             if ($nextState.Files.Path -contains $legacyProxy) { Write-Host 'The UE4SS loader is suspended. Uninstall-Native.cmd restores it.' }
         }
         Uninstall { Write-Host 'Native setup removal complete.' }

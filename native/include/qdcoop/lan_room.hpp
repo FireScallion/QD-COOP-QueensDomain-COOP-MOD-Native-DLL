@@ -12,7 +12,7 @@ struct Token {
 enum class Op : std::uint32_t {hello=1,challenge,proof,welcome,ready,active,ping,bye,refused,restart};
 enum class Phase : std::uint32_t { idle,waiting,active,closed,failed,recovering };
 enum class Failure : std::uint32_t { none,game_build,socket,random,timeout,full,departure,recovery,durable };
-inline constexpr std::uint32_t protocol=0x4e344c1d,magic=0x4e414c51;
+inline constexpr std::uint32_t protocol=0x4e344c1f,magic=0x4e414c51;
 inline constexpr unsigned unassigned=255,bytes=72;
 struct Control {
     Op op{};

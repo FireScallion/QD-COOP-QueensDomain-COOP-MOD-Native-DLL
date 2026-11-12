@@ -4,10 +4,11 @@ struct ProjectilePart {
     std::uint16_t id{};
 };
 struct ProjectileSource {
-    Weak actor,author,display_owner;
+    Weak actor,author,display_owner,mesh_material;
     ProjectilePart mesh,trail;
     Projectile::Frame frame;
     std::uint32_t generation{};
+    std::uint16_t material_id{};
     double next{},retire_until{},first_seen{},next_bind{},deactivate_until{};
     bool published{},following{},detached{};
 };
@@ -15,7 +16,7 @@ struct ProjectileVisual {
     Projectile::Track track;
     Weak actor,component,trail;
     std::uint32_t generation{};
-    std::uint16_t mesh_id{},trail_id{};
+    std::uint16_t mesh_id{},trail_id{},material_id{};
     double next_spawn{},next_trail{};
     std::array<float,12> pose{},trail_pose{};
     std::array<Projectile::Parameter,Projectile::parameter_capacity> parameters{};
@@ -25,6 +26,8 @@ static std::array<ProjectileSource,Projectile::capacity> projectile_sources;
 static std::array<std::array<ProjectileVisual,Projectile::capacity>,Player::slots> projectile_visuals;
 struct NativeVisualAsset {Weak asset;double retry{};};
 static std::array<NativeVisualAsset,Projectile::assets::meshes.size()> projectile_meshes;
+static std::array<NativeVisualAsset,Projectile::assets::mesh_materials.size()> projectile_materials;
+static bool projectile_materials_bound;
 static std::array<NativeVisualAsset,Projectile::assets::trails.size()> projectile_trails;
 static std::array<NativeVisualAsset,Projectile::assets::particles.size()> projectile_particles;
 static Weak player_projectile_class,enemy_projectile_base,projectile_hook_function,projectile_effect_function,projectile_attach_function;
@@ -76,6 +79,8 @@ static ProjectileSource* projectile_reserve(void* object,Projectile::Profile pro
         slot.frame.slot=host_role?0:Player::unassigned;
         slot.author=slot.display_owner={};
         slot.mesh=slot.trail={};
+        slot.mesh_material={};
+        slot.material_id=0;
         slot.next=slot.retire_until=slot.next_bind=slot.deactivate_until=0;
         slot.first_seen=time;
         slot.published=false;
@@ -159,6 +164,33 @@ static std::uint16_t projectile_asset_id(ProjectilePart& part,void* component,co
 }
 static std::uint16_t projectile_mesh_id(ProjectilePart& part,void* component){
     return projectile_asset_id(part,component,"StaticMesh",Projectile::assets::meshes,Projectile::assets::player_meshes);
+}
+struct ProjectileMaterialArgs {int slot{},padding{};void* material{};};
+static bool projectile_material_bind(){
+    if(!projectile_materials_bound)
+        projectile_materials_bound=world_input(world_material_type)&&
+            medic_params(world_get_material,16,{{"ElementIndex",4,0},{"ReturnValue",8,8}})&&
+            medic_params(world_set_material,16,{{"ElementIndex",4,0},{"Material",8,8}});
+    return projectile_materials_bound;
+}
+static std::uint16_t projectile_material_id(ProjectileSource& source,void* component){
+    if(!projectile_material_bind())return 0;
+    ProjectileMaterialArgs args;
+    api.event(component,world_input(world_get_material),&args);
+    if(!args.material)return 0;
+    if(api.weakget(&source.mesh_material)==args.material)return source.material_id;
+    source.material_id=0;
+    if(!makeweak(source.mesh_material,args.material))return 0;
+    const auto type=world_input(world_material_type);
+    auto material=args.material;
+    for(unsigned depth=0;depth<3&&material&&type&&api.isa(material,type);++depth){
+        std::string path;
+        if(catalog_path(material,path))
+            source.material_id=Projectile::assets::id(Projectile::assets::mesh_materials,path);
+        if(source.material_id)break;
+        material=catalog_object_field(material,"Parent");
+    }
+    return source.material_id;
 }
 static std::uint16_t projectile_trail_id(ProjectilePart& part,void* component){
     return projectile_asset_id(part,component,"Asset",Projectile::assets::trails,Projectile::assets::player_trails);
@@ -494,6 +526,7 @@ static bool projectile_capture(void* actor,ProjectileSource& source,double time)
     }
     frame.mesh_asset=0;
     if(mesh&&projectile_visible(mesh,actor))frame.mesh_asset=projectile_mesh_id(source.mesh,mesh);
+    frame.mesh_material=frame.mesh_asset?projectile_material_id(source,mesh):0;
     const auto trail_asset=projectile_trail_id(source.trail,trail);
     if(frame.trail_asset!=trail_asset)frame.parameters={};
     frame.trail_asset=trail_asset;
@@ -554,6 +587,7 @@ static void projectile_send(double time){
                 frame.velocity={};
                 frame.trail_active=frame.trail_hidden=false;
                 frame.mesh_asset=frame.trail_asset=0;
+                frame.mesh_material=0;
                 frame.parameters={};
                 source.retire_until=time+.55;
                 ++projectile_retired;
@@ -610,6 +644,7 @@ static bool projectile_remove(ProjectileVisual& visual){
     visual.component={};
     visual.generation=0;
     visual.mesh_id=0;
+    visual.material_id=0;
     visual.positioned=false;
     ++projectile_removed;
     return true;
@@ -661,6 +696,22 @@ static bool projectile_spawn(void* context,ProjectileVisual& visual,double time)
     visual.generation=frame.generation;
     visual.mesh_id=frame.mesh_asset;
     ++projectile_spawned;
+    return true;
+}
+static bool projectile_apply_material(void* component,ProjectileVisual& visual,std::uint16_t id,double time){
+    if(visual.material_id==id)return true;
+    if(!projectile_material_bind())return false;
+    const auto material=projectile_asset(projectile_materials,Projectile::assets::mesh_materials,
+        id,world_input(world_material_type),time);
+    if(id&&!material)return false;
+    ProjectileMaterialArgs args{0,0,material};
+    api.event(component,world_input(world_set_material),&args);
+    if(material){
+        args={};
+        api.event(component,world_input(world_get_material),&args);
+        if(args.material!=material)return false;
+    }
+    visual.material_id=id;
     return true;
 }
 static void* projectile_trail_component(void* component,ProjectileVisual& visual,std::uint16_t id,double time){
@@ -759,6 +810,7 @@ static void projectile_display(void* context,double time){
         if(!api.weakget(&visual.actor)&&!projectile_spawn(context,visual,time))continue;
         const auto actor=api.weakget(&visual.actor),component=api.weakget(&visual.component);
         if(!actor||!component)continue;
+        if(!projectile_apply_material(component,visual,frame.mesh_material,time))continue;
         const auto elapsed=static_cast<float>(std::clamp(time-visual.track.received,0.,.055));
         const bool first=!visual.positioned;
         if(projectile_place(component,frame.mesh,frame.velocity,elapsed,visual.pose,visual.positioned))++projectile_moves;
@@ -802,6 +854,8 @@ static void native_projectile_reset(){
     projectile_sources={};
     projectile_visuals={};
     projectile_meshes={};
+    projectile_materials={};
+    projectile_materials_bound=false;
     projectile_trails={};
     projectile_particles={};
     projectile_parameter_names={};

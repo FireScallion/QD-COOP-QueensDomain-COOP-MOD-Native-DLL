@@ -30,6 +30,10 @@
 #include "qdcoop/checkpoint_store_windows.hpp"
 #include "qdcoop/world_progress_map.hpp"
 #include "qdcoop/world_progress_personal.hpp"
+#include "qdcoop/world_interaction_intent.hpp"
+#include "qdcoop/door_trigger_intent.hpp"
+#include "qdcoop/enemy_rest_intent.hpp"
+#include "qdcoop/story_reward_intent.hpp"
 #include "qdcoop/native_save_clone.hpp"
 #include "qdcoop/persistent_travel.hpp"
 #include "qdcoop/elevator_intent.hpp"
@@ -64,6 +68,7 @@
 #include <optional>
 #include <tuple>
 #include <unordered_map>
+#include <unordered_set>
 #include <vector>
 
 namespace E=qdcoop::enemy;
@@ -448,6 +453,11 @@ static void native_world_step(double time);
 static bool receive_player(const ReceivedPacket&,double);
 static bool receive_persistent_travel(const ReceivedPacket&,unsigned);
 static bool receive_elevator_intent(const ReceivedPacket&,unsigned,double);
+static bool receive_story_reward(const ReceivedPacket&,unsigned,double);
+static bool receive_world_interaction(const ReceivedPacket&,unsigned,double);
+static bool receive_door_trigger(const ReceivedPacket&,unsigned,double);
+static bool native_door_triggers_cleanup();
+static bool receive_enemy_rest(const ReceivedPacket&,unsigned,double);
 static bool receive_world_scene(const ReceivedPacket&,unsigned,double);
 static bool receive_native_boss(const ReceivedPacket&,unsigned);
 static bool receive_boss_interact(const ReceivedPacket&,unsigned,double);
@@ -485,6 +495,7 @@ static bool world_progress_ready();
 static bool native_pause_cleanup();
 static bool native_damage_cleanup();
 static bool native_travel_guard_cleanup();
+static bool native_stock_enemies_cleanup();
 static void reset_native_gameplay_scope();
 static std::string native_reward_stats();
 static std::uint64_t checkpoint_world_nonce;
@@ -504,6 +515,13 @@ static std::uint64_t presentation_camera_updates,presentation_look_events,presen
 static std::uint64_t checkpoint_archives,checkpoint_commits,checkpoint_ready_acks,checkpoint_stock_writes,checkpoint_errors;
 static std::uint64_t world_progress_sent,world_progress_applied,world_progress_writes,world_progress_errors;
 static std::uint64_t world_actor_restores,world_actor_chests,world_actor_sounds,world_actor_breakables;
+static std::uint64_t world_interactions_queued,world_interactions_sent,world_interactions_received,world_interactions_applied;
+static std::uint64_t door_triggers_observed,door_triggers_replayed,door_triggers_sent,door_triggers_received;
+static unsigned door_trigger_stage,door_trigger_index_size,door_trigger_binding,door_trigger_actor_count;
+static unsigned world_interaction_stage,world_breakable_index_size;
+static std::uint64_t stock_enemies_suppressed;
+static std::uint64_t enemy_rest_requests,enemy_rest_sent,enemy_rest_refreshes,enemy_rest_spawners;
+static unsigned enemy_rest_stage;
 static std::uint64_t world_mechanism_doors,world_mechanism_levers;
 static std::uint64_t world_barrier_captured,world_barrier_applied;
 static std::uint64_t world_arena_captured,world_arena_applied,world_arena_necro_material;
@@ -530,6 +548,7 @@ static std::uint64_t world_music_changes,world_music_restored;
 static std::uint64_t guest_safe_save_writes;
 static std::uint64_t world_library_locks,world_library_restores,world_library_gate_locks;
 static std::uint64_t world_elevator_moves,world_elevator_leases,world_elevator_releases;
+static std::uint64_t elevator_motion_sent,elevator_motion_received;
 static std::uint64_t elevator_intents,elevator_host_accepts,elevator_host_refusals,elevator_guest_accepts,elevator_guest_refusals;
 static std::uint64_t cine_starts,cine_plays,cine_skips,cine_broadcasts,cine_commits,cine_callbacks,cine_errors;
 static std::uint64_t boss_phase_sent,boss_phase_received,boss_phase_applied,boss_phase_interactable;
@@ -563,7 +582,7 @@ static std::uint64_t sound_loop_moved,sound_loop_retired,sound_loop_stopped;
 static std::uint64_t sound_loop_fade_observed,sound_loop_fade_received,sound_loop_fade_applied;
 static std::uint64_t sound_loop_fade_in_observed,sound_loop_fade_in_received,sound_loop_fade_in_applied;
 static std::uint64_t sound_loop_ambient_discovered;
-static std::uint64_t story_duck_grants;
+static std::uint64_t story_duck_grants,story_duck_pickups_retired;
 static void reset_native_world_epoch();
 static bool receive_native_reward(const ReceivedPacket& received);
 static void reset_native_epoch();
@@ -706,6 +725,26 @@ static std::string stats(){
         ",\"world_actor_restores\":"+std::to_string(world_actor_restores)+
         ",\"world_actor_chests\":"+std::to_string(world_actor_chests)+
         ",\"world_actor_breakables\":"+std::to_string(world_actor_breakables)+
+        ",\"world_interactions_queued\":"+std::to_string(world_interactions_queued)+
+        ",\"world_interactions_sent\":"+std::to_string(world_interactions_sent)+
+        ",\"world_interactions_received\":"+std::to_string(world_interactions_received)+
+        ",\"world_interactions_applied\":"+std::to_string(world_interactions_applied)+
+        ",\"door_triggers_observed\":"+std::to_string(door_triggers_observed)+
+        ",\"door_triggers_replayed\":"+std::to_string(door_triggers_replayed)+
+        ",\"door_triggers_sent\":"+std::to_string(door_triggers_sent)+
+        ",\"door_triggers_received\":"+std::to_string(door_triggers_received)+
+        ",\"door_trigger_stage\":"+std::to_string(door_trigger_stage)+
+        ",\"door_trigger_index_size\":"+std::to_string(door_trigger_index_size)+
+        ",\"door_trigger_binding\":"+std::to_string(door_trigger_binding)+
+        ",\"door_trigger_actor_count\":"+std::to_string(door_trigger_actor_count)+
+        ",\"world_interaction_stage\":"+std::to_string(world_interaction_stage)+
+        ",\"world_breakable_index\":"+std::to_string(world_breakable_index_size)+
+        ",\"stock_enemies_suppressed\":"+std::to_string(stock_enemies_suppressed)+
+        ",\"enemy_rest_requests\":"+std::to_string(enemy_rest_requests)+
+        ",\"enemy_rest_sent\":"+std::to_string(enemy_rest_sent)+
+        ",\"enemy_rest_stage\":"+std::to_string(enemy_rest_stage)+
+        ",\"enemy_rest_refreshes\":"+std::to_string(enemy_rest_refreshes)+
+        ",\"enemy_rest_spawners\":"+std::to_string(enemy_rest_spawners)+
         ",\"world_actor_sounds\":"+std::to_string(world_actor_sounds)+
         ",\"world_mechanism_doors\":"+std::to_string(world_mechanism_doors)+
         ",\"world_mechanism_levers\":"+std::to_string(world_mechanism_levers)+
@@ -763,6 +802,8 @@ static std::string stats(){
         ",\"world_library_restores\":"+std::to_string(world_library_restores)+
         ",\"world_library_gate_locks\":"+std::to_string(world_library_gate_locks)+
         ",\"world_elevator_moves\":"+std::to_string(world_elevator_moves)+
+        ",\"elevator_motion_sent\":"+std::to_string(elevator_motion_sent)+
+        ",\"elevator_motion_received\":"+std::to_string(elevator_motion_received)+
         ",\"world_elevator_leases\":"+std::to_string(world_elevator_leases)+
         ",\"world_elevator_releases\":"+std::to_string(world_elevator_releases)+
         ",\"elevator_intents\":"+std::to_string(elevator_intents)+
@@ -860,6 +901,7 @@ static std::string stats(){
         ",\"sound_loop_fade_in_applied\":"+std::to_string(sound_loop_fade_in_applied)+
         ",\"sound_loop_ambient_discovered\":"+std::to_string(sound_loop_ambient_discovered)+
         ",\"story_duck_grants\":"+std::to_string(story_duck_grants)+
+        ",\"story_duck_pickups_retired\":"+std::to_string(story_duck_pickups_retired)+
         ",\"player_equipped\":"+std::to_string(player_equipped)+",\"player_parts_created\":"+std::to_string(player_parts_created)+
         ",\"player_parts_removed\":"+std::to_string(player_parts_removed)+",\"player_skin_changed\":"+std::to_string(player_skin_changed)+
         ",\"player_equipment_stage\":"+std::to_string(player_equipment_stage)+
@@ -1057,6 +1099,8 @@ static bool cleanup_native_actors(){
     if(!native_visual_mount_cleanup())cleaned=false;
     if(!native_pause_cleanup())cleaned=false;
     if(!native_travel_guard_cleanup())cleaned=false;
+    if(!native_stock_enemies_cleanup())cleaned=false;
+    if(!native_door_triggers_cleanup())cleaned=false;
     if(!native_boss_interact_cleanup())return false;
     if(!native_projectile_cleanup())cleaned=false;
     if(!native_placed_items_cleanup())cleaned=false;
@@ -1421,6 +1465,7 @@ extern "C" __declspec(dllexport) unsigned QDEnemyBindCatalogNativeAnimation(
 namespace Hit=qdcoop::enemy::damage;
 static void receive_native_damage(const ReceivedPacket& received,unsigned kind,double time);
 #include "native_player.inc"
+#include "native_enemy_rest.inc"
 #include "native_damage.inc"
 #include "native_travel_guard.inc"
 #include "native_world_streaming.inc"
@@ -1432,11 +1477,13 @@ static void receive_native_damage(const ReceivedPacket& received,unsigned kind,d
 #include "native_vm.inc"
 #include "native_cosmetic_scope.inc"
 #include "native_projectile.inc"
+#include "native_door_triggers.inc"
 #include "native_placed_items.inc"
 #include "native_body_material.inc"
 #include "native_visual_mount.inc"
 #include "native_healthbar.inc"
 #include "native_sound.inc"
+#include "native_world_special.inc"
 #include "native_story_reward.inc"
 #include "native_combat_reward.inc"
 static void reset_native_gameplay_scope();
@@ -1458,6 +1505,8 @@ static void reset_native_gameplay_scope(){
     world_progress_reset();
     world_actor_reset();
     world_mechanisms_reset();
+    world_special_reset();
+    enemy_rest={};
     native_damage_reset();
     for(auto& entity:entities)entity={};
     for(auto& binding:anim_bindings)binding={};
@@ -1475,6 +1524,7 @@ static void reset_native_gameplay_scope(){
     automatic_context={};
     automatic_limit=automatic_guest_cursor=0;
     automatic_next_scan=0;
+    factory_next_cold_load=0;
     factory_configured=false;
     ownership_ready=false;
     death_ready=false;

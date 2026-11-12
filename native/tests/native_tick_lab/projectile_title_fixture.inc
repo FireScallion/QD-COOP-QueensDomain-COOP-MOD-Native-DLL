@@ -1,7 +1,7 @@
 namespace ProjectileFixture {
 enum Symbol {dagger,fire,exit_cutscene,position,scale,actor_collision,component_collision,destroying,destroy,
              fx_active,fx_parent,begin_spawn,finish_spawn,static_component,component_position,dagger_hit,
-             niagara_type,mesh_actor_type,particle_type,emitter_location,count};
+             niagara_type,mesh_actor_type,particle_type,emitter_location,mesh_material,count};
 constexpr std::array<const char*,count> paths{
     "/Game/Items/Weapons/Daggers/Default/DefaultDagger_Projectile_BP.DefaultDagger_Projectile_BP_C",
     "/Game/Player/FS_PlayerChar.FS_PlayerChar_C.FireDagger",
@@ -14,7 +14,8 @@ constexpr std::array<const char*,count> paths{
     "/Script/Engine.StaticMeshComponent","/Script/Engine.SceneComponent.K2_GetComponentLocation",
     "/Game/Items/Weapons/Daggers/Dagger_Projectile_Base.Dagger_Projectile_Base_C.ImpactFX",
     "/Script/Niagara.NiagaraComponent","/Script/Engine.StaticMeshActor",
-    "/Script/Engine.ParticleSystemComponent","/Script/Engine.GameplayStatics.SpawnEmitterAtLocation"
+    "/Script/Engine.ParticleSystemComponent","/Script/Engine.GameplayStatics.SpawnEmitterAtLocation",
+    "/Script/Engine.PrimitiveComponent.GetMaterial"
 };
 constexpr std::string_view mesh_path="/Game/Items/Weapons/Daggers/Default/Default_Dagger_Low.Default_Dagger_Low";
 constexpr std::string_view trail_path="/Game/Items/Weapons/Daggers/Default/Dagger_Projectile_Trail.Dagger_Projectile_Trail";
@@ -26,13 +27,17 @@ constexpr std::string_view enemy_trail="/Game/Enemies/Boner_00/Skeletons24/Black
 constexpr std::string_view impact_asset="/Game/Enemies/Boner_00/Skeletons24/Black/Boner_SlashGun_ImpactFX.Boner_SlashGun_ImpactFX";
 constexpr std::string_view dagger_impact="/Game/Items/Weapons/Daggers/Shared/Default_Dagger_ImpactVFX.Default_Dagger_ImpactVFX";
 constexpr std::string_view cascade_impact="/Game/LD45/FX/BloodSplosion.BloodSplosion";
+constexpr std::string_view torch_class="/Game/Items/Weapons/Torch/Torch_Projectile.Torch_Projectile_C";
+constexpr std::string_view torch_mesh="/Engine/BasicShapes/Sphere.Sphere";
+constexpr std::string_view torch_trail="/Game/Items/Weapons/Torch/Torch_FireballFX.Torch_FireballFX";
+constexpr std::string_view torch_material="/Game/Items/Weapons/Torch/Torch_Fireball.Torch_Fireball";
 std::array<UE::WeakKey,count> objects{};
 UE::WeakKey actor{},shooter{},trail{},burst{};
 std::wstring directory;
 ULONGLONG ready{},last_scan{},last_report{},next_asset_load{};
 float traveled{};
-bool fired{},no_collision{},scale_matches{},moved{},retired{},requested_destroy{},reported{},trail_active{},trail_gone{},gun{},enemy{};
-bool impact{},impact_active{},impact_gone{},impact_position{},impact_triggered{},cascade{};
+bool fired{},no_collision{},scale_matches{},moved{},retired{},requested_destroy{},reported{},trail_active{},trail_gone{},gun{},enemy{},torch{};
+bool impact{},impact_active{},impact_gone{},impact_position{},impact_triggered{},cascade{},torch_attempted{};
 std::array<float,3> first_position{};
 unsigned (*read_core)(char*,unsigned){};
 constexpr std::array<const wchar_t*,4> relay_roles{L"host",L"client",L"client2",L"client3"};
@@ -42,7 +47,7 @@ std::wstring path(std::wstring_view name){return directory+L"/"+std::wstring(nam
 std::wstring_view source_name(){return enemy?L"host":L"client";}
 bool source_role(){return lan.role==source_name();}
 bool rendered_receiver(){return lan.role==(enemy?L"client":L"host");}
-std::string_view stock_class(){return enemy?enemy_class:gun?gun_class:paths[dagger];}
+std::string_view stock_class(){return torch?torch_class:enemy?enemy_class:gun?gun_class:paths[dagger];}
 bool all_joined(){
     for(const auto role:relay_roles)if(!marker_exists(path(std::wstring(role)+L"/ready.txt").c_str()))return false;
     return true;
@@ -68,7 +73,13 @@ bool active_fx(Address effect){
 Address static_mesh(Address object){
     const auto component=ui.object(object,"StaticMeshComponent");
     const auto mesh=ui.object(component,"StaticMesh");
-    return mesh&&path_is(mesh,gun||enemy?gun_mesh:mesh_path)?component:0;
+    if(!mesh||!path_is(mesh,torch?torch_mesh:gun||enemy?gun_mesh:mesh_path))return 0;
+    if(!torch)return component;
+    const auto get_material=get(mesh_material);
+    if(!ui.method(get_material,16,{{"ElementIndex","IntProperty",0,4},{"ReturnValue","ObjectProperty",8,8}}))return 0;
+    struct Args {int slot{},padding{};Address material{};} args;
+    TitleUi::event(component,get_material,&args);
+    return args.material&&path_is(args.material,torch_material)?component:0;
 }
 void scan() {
     const auto array=at<UE::ObjectArray>(image+TitleUi::object_array,0);
@@ -98,7 +109,7 @@ void scan() {
         if((type==niagara||(cascade&&type==particle))&&!(at<unsigned>(item.object,8)&0x10u)&&
            ui.method(get(fx_parent),8,{{"ReturnValue","ObjectProperty",0,8}})){
             const auto asset=ui.object(item.object,type==particle?"Template":"Asset");
-            if(type==niagara&&!source_role()&&asset&&watched&&path_is(asset,enemy?enemy_trail:gun?gun_trail:trail_path)){
+            if(type==niagara&&!source_role()&&asset&&watched&&path_is(asset,torch?torch_trail:enemy?enemy_trail:gun?gun_trail:trail_path)){
                 Address parent{};
                 TitleUi::event(item.object,get(fx_parent),&parent);
                 if(parent==static_mesh(watched))ui.remember(trail,item.object);
@@ -192,7 +203,7 @@ void spawn_cascade(Address projectile,Address system,const std::array<float,3>& 
     impact_position=record_impact_origin(effect);
 }
 bool fire_projectile(Address pawn){
-    if(!gun&&!enemy&&!impact){
+    if(!gun&&!enemy&&!impact&&!torch){
         if(!ui.method(get(fire),9,{{"Class","ClassProperty",0,8},{"Success","BoolProperty",8,1}}))return false;
         struct Args {Address type;bool success;} args{get(dagger),false};
         TitleUi::event(pawn,get(fire),&args);
@@ -229,6 +240,12 @@ bool fire_projectile(Address pawn){
     TitleUi::event(gameplay,begin,args.data());
     const auto projectile=UE::field<Address>(args.data(),80);
     if(!projectile)return false;
+    if(torch){
+        const auto instigator=ui.member(projectile,"Instigator","ObjectProperty",8);
+        if(!instigator)return false;
+        const auto offset=at<unsigned>(instigator,76);
+        std::memcpy(reinterpret_cast<void*>(projectile+offset),&pawn,sizeof(pawn));
+    }
     std::memcpy(done.data(),&projectile,8);
     std::memcpy(done.data()+16,transform.data(),48);
     TitleUi::event(gameplay,finish,done.data());
@@ -241,7 +258,7 @@ bool fire_projectile(Address pawn){
         TitleUi::event(projectile,get(dagger_hit),contact.data());
         impact_triggered=true;
     }
-    return ui.get(actor)==projectile;
+    return torch||ui.get(actor)==projectile;
 }
 bool step(Address instance,ULONGLONG now) {
     if(reported)return !lan.host||marker_exists(path(L"projectile-source-complete.txt").c_str());
@@ -254,6 +271,7 @@ bool step(Address instance,ULONGLONG now) {
             const bool player_impact=std::wcscmp(variant,L"dagger-hit")==0;
             const bool enemy_impact=std::wcscmp(variant,L"impact")==0;
             gun=std::wcscmp(variant,L"gun")==0;
+            torch=std::wcscmp(variant,L"torch")==0;
             cascade=std::wcscmp(variant,L"cascade")==0;
             impact=player_impact||enemy_impact||cascade;
             enemy=enemy_impact||cascade||std::wcscmp(variant,L"enemy")==0;
@@ -279,7 +297,7 @@ bool step(Address instance,ULONGLONG now) {
     if(source_role()){
         if(!fired){
             if(now-ready<1800||!all_joined())return false;
-            if((gun||enemy||impact)&&!get(dagger)&&now>=next_asset_load){
+            if((gun||enemy||impact||torch)&&!get(dagger)&&now>=next_asset_load){
                 next_asset_load=now+1500;
                 if(const auto type=ui.load_asset_path(stock_class()))ui.remember(objects[dagger],type);
             }
@@ -293,6 +311,8 @@ bool step(Address instance,ULONGLONG now) {
             TitleUi::event(ui.get(TitleUi::gameplay),ui.get(TitleUi::local_pawn),pawn);
             if(!pawn[2])return false;
             if(!enemy)ui.remember(shooter,pawn[2]);
+            if(torch&&torch_attempted)return false;
+            if(torch)torch_attempted=true;
             fired=fire_projectile(pawn[2]);
             return false;
         }
@@ -307,10 +327,11 @@ bool step(Address instance,ULONGLONG now) {
         const bool projectile_ended=((enemy&&impact&&!cascade)||requested_destroy)&&gone(ui.get(actor));
         const bool source_ended=projectile_ended&&(!impact||(impact_position&&!active_fx(ui.get(burst))));
         if(source_ended&&all_receivers(L"-gone.txt")&&
-           core_proof(impact?"\"projectile_observed\":2,":"\"projectile_observed\":1,",
-                      impact?"\"projectile_retired\":2,":"\"projectile_retired\":1,")){
+           (torch||core_proof(impact?"\"projectile_observed\":2,":"\"projectile_observed\":1,",
+                      impact?"\"projectile_retired\":2,":"\"projectile_retired\":1,"))){
             retired=true;
             impact_gone=impact;
+            if(torch)core_proof("","");
             report();
             marker(path(L"projectile-source-complete.txt").c_str());
         }
@@ -320,7 +341,7 @@ bool step(Address instance,ULONGLONG now) {
         const auto effect=ui.get(trail);
         if(!component||!ui.method(get(position),12,{{"ReturnValue","StructProperty",0,12}})||
            !ui.method(get(scale),12,{{"ReturnValue","StructProperty",0,12}})||!no_collisions(visual))return false;
-        if(rendered_receiver()){
+        if(rendered_receiver()&&!torch){
             trail_active=active_fx(effect);
             if(!trail_active)return false;
         }
@@ -329,7 +350,8 @@ bool step(Address instance,ULONGLONG now) {
         TitleUi::event(component,get(scale),actual_scale.data());
         const std::array<float,3> expected=enemy?std::array{.521728f,.600343f,.25f}:
             gun?std::array{.613495f,1.740524f,.5f}:std::array{-1.f,1.f,1.f};
-        scale_matches=std::abs(actual_scale[0]-expected[0])<.01f&&std::abs(actual_scale[1]-expected[1])<.01f&&
+        scale_matches=torch?std::ranges::all_of(actual_scale,[](float scale){return std::isfinite(scale)&&scale>0.f;}):
+            std::abs(actual_scale[0]-expected[0])<.01f&&std::abs(actual_scale[1]-expected[1])<.01f&&
             std::abs(actual_scale[2]-expected[2])<.01f;
         if(!scale_matches)return false;
         std::array<float,3> current{};
@@ -344,17 +366,19 @@ bool step(Address instance,ULONGLONG now) {
         if(traveled>50.f){
             moved=true;
             marker(path(L"projectile-"+lan.role+L"-moved.txt").c_str());
+            if(torch)marker(path(L"projectile-"+lan.role+L"-fireball-material.txt").c_str());
         }
     }else if(gone(ui.get(actor))&&!ui.get(trail)&&(!impact||!rendered_receiver()||(impact_position&&!ui.get(burst)))&&
-             core_proof(impact?"\"projectile_retired\":2,":"\"projectile_retired\":1,",
+             (torch||(core_proof(impact?"\"projectile_retired\":2,":"\"projectile_retired\":1,",
                         impact?"\"projectile_spawned\":2,":"\"projectile_spawned\":1,")&&
              core_proof(impact?"\"projectile_spawned\":2,":"\"projectile_spawned\":1,",
                         impact?"\"projectile_removed\":2,":"\"projectile_removed\":1,")&&
              (!rendered_receiver()||core_proof(impact?"\"projectile_trail_spawned\":2,":"\"projectile_trail_spawned\":1,",
-                                              impact?"\"projectile_trail_removed\":2,":"\"projectile_trail_removed\":1,"))){
+                                              impact?"\"projectile_trail_removed\":2,":"\"projectile_trail_removed\":1,"))))){
         trail_gone=true;
         impact_gone=impact&&rendered_receiver();
         retired=true;
+        if(torch)core_proof("","");
         marker(path(L"projectile-"+lan.role+L"-gone.txt").c_str());
         report();
     }

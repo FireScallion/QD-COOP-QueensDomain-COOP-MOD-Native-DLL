@@ -3,7 +3,7 @@
 
 namespace TitleUi {
 using Exec=void(*)(void*,void*,void*);
-enum class Action { none,open,host,friends,host_lan,join_lan,choose_seats,confirm_host,connect,
+enum class Action { none,open,host,friends,host_lan,join_lan,fewer_seats,more_seats,confirm_host,connect,
                     previous_skin,next_skin,select_skin,friend_pick,friend_previous,friend_next,back,closed,canceled };
 enum class Screen { home,host_steam,host_lan,join_lan,join_friends,invite_friends };
 enum class SaveMode { none,host,guest };
@@ -209,6 +209,27 @@ struct Menu {
         event(slot,ui.get(horizontal_slot_size),&size);
         event(slot,ui.get(horizontal_slot_padding),padding.data());
         event(slot,ui.get(horizontal_slot_vertical),&centered);
+        return true;
+    }
+    bool add_seat_picker() {
+        const auto context=ui.get(panel),source=ui.get(model),tree=ui.object(context,"WidgetTree");
+        if(!tree||!source)return false;
+        const auto row=ui.spawn(tree,ui.get(horizontal_box_type));
+        const auto fewer=ui.button(context,source,L"-"),more=ui.button(context,source,L"+");
+        const auto label=stock_label(seats_caption().c_str());
+        const auto caption=label?sized(tree,label,210.f,arrow_height):0;
+        if(!row||!fewer||!more||!caption)return false;
+        unsigned char center=2;
+        const auto slot=ui.object(label,"Slot");
+        if(!slot)return false;
+        event(slot,ui.get(size_horizontal),&center);
+        event(slot,ui.get(size_vertical),&center);
+        if(!add_column(row,sized(tree,fewer,arrow_width,arrow_height))||!add_column(row,caption)||
+           !add_column(row,sized(tree,more,arrow_width,arrow_height))||
+           !add_row(row,Action::fewer_seats,arrow_height,fewer))return false;
+        center_row(row,{});
+        if(!track_control(more,Action::more_seats))return false;
+        ui.remember(seat_picker,label);
         return true;
     }
     bool add_friend(const Social::Friend& item,bool inviting,unsigned index,Address& first) {
@@ -527,16 +548,15 @@ struct Menu {
                !add_button(message(L"Join LAN game",L"加入局域网游戏"),Action::join_lan))return false;
             if(!open_skin())return false;
         }else if(screen==Screen::host_steam){
-            first=add_button(seats_caption().c_str(),Action::choose_seats);
-            if(!first||!add_button(message(L"Choose save",L"选择存档"),Action::confirm_host))return false;
-            ui.remember(seat_picker,first);
+            if(!add_seat_picker())return false;
+            first=add_button(message(L"Choose save",L"选择存档"),Action::confirm_host);
+            if(!first)return false;
         }else if(hosting_lan){
             if(!set_lan_layout(440.f)||!centered_label(message(L"Room port",L"房间端口"),30.f)||
                !add_field(port_field,std::to_wstring(host_port).c_str()))return false;
-            const auto seats=add_button(seats_caption().c_str(),Action::choose_seats,45.f);
+            if(!add_seat_picker())return false;
             first=add_button(message(L"Host game",L"主持游戏"),Action::confirm_host,45.f);
-            if(!seats||!first)return false;
-            ui.remember(seat_picker,seats);
+            if(!first)return false;
         }else if(joining_lan){
             if(!set_lan_layout(680.f)||!centered_label(message(L"Host IP address",L"房主 IP 地址"),30.f)||
                !add_field(address_field,lan_address.data())||!centered_label(message(L"Port",L"端口"),30.f)||
@@ -738,11 +758,12 @@ struct Menu {
         case Action::join_lan:
             if(!show(Screen::join_lan))close_and_focus(true);
             break;
-        case Action::choose_seats: {
+        case Action::fewer_seats:
+        case Action::more_seats: {
             auto& seats=screen==Screen::host_steam?steam_seats:lan_seats;
-            seats=seats==4?2:seats+1;
-            if(const auto button=ui.get(seat_picker))
-                if(const auto label=ui.first_text(ui.object(button,"Subcontent")))ui.label(label,seats_caption().c_str());
+            if(action==Action::fewer_seats&&seats>2)--seats;
+            if(action==Action::more_seats&&seats<4)++seats;
+            if(const auto label=ui.get(seat_picker))ui.label(label,seats_caption().c_str());
             break;
         }
         case Action::confirm_host:

@@ -74,12 +74,9 @@ static bool run_world_story_stage(Address engine,ULONGLONG time){
     if(!all_player_markers(L"story-duck-claimed.txt"))return false;
     if(host&&!unlocked){test_world_put(names,keys[1],1);unlocked=true;}
     if(!exists(marker(role_index,L"story-duck-consumed.txt"))){
-        if(test_world_find(names,keys[1])!=1)return false;
-        if(!consumed_at){
-            if(!story_test_change(pawn,duck,-1)||count()!=0)return false;
-            consumed_at=time;
-        }
-        if(time-consumed_at<1500||count()!=0)return false;
+        if(test_world_find(names,keys[1])!=1||count()!=0){consumed_at=0;return false;}
+        if(!consumed_at)consumed_at=time;
+        if(time-consumed_at<1500)return false;
         constexpr char proof[]="stock consume, no regrant after unlock";
         write_file(marker(role_index,L"story-duck-consumed.txt").c_str(),proof,sizeof(proof)-1);
     }

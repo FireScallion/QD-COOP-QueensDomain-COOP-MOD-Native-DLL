@@ -2,6 +2,9 @@
 #include "native_title_menu_probe.cpp"
 #include "qdcoop/lan_room.hpp"
 #include "qdcoop/native_world.hpp"
+#ifdef QDCOOP_WORLD_JOIN_FIXTURE
+#include "qdcoop/checkpoint_wire.hpp"
+#endif
 #ifdef QDCOOP_COMBAT_REWARD_FIXTURE
 #include "qdcoop/enemy_discovery.hpp"
 #include "qdcoop/object_count_map.hpp"
@@ -24,8 +27,10 @@ namespace World=qdcoop::native_world;
 struct LanTitle {
     int (*read)(Lan::Status*,unsigned){};
     World::Phase (*world)(){};
-#ifdef QDCOOP_PLACED_ITEM_TITLE_FIXTURE
+#if defined(QDCOOP_PLACED_ITEM_TITLE_FIXTURE) || defined(QDCOOP_WORLD_JOIN_FIXTURE)
     int (*host_lan)(unsigned,unsigned){};
+#endif
+#ifdef QDCOOP_PLACED_ITEM_TITLE_FIXTURE
     int (*join_lan)(const wchar_t*,unsigned){};
     Lan::Status first{};
     unsigned cycle{};
@@ -126,13 +131,15 @@ void lan_title_menu(Address title,Address options,bool in_save,const Room::Statu
     if(lan.host){
         if(lan.stage>=2&&lan.stage<=4){
             constexpr const wchar_t* captions[]{L"Players: 2",L"Players: 3",L"Players: 4"};
-            const auto seats=named_button(options,captions[lan.stage-2]);
-            if(!seats)return;
-            if(lan.stage<4||lan.seats==2)click_title(seats);
+            const auto more=named_button(options,L"+"),less=named_button(options,L"-");
+            if(!more||!less)return;
+            const auto expected=lan.seats==4?lan.stage-2:lan.stage==3?1u:0u;
+            if(!named_label(options,captions[expected]))return;
+            click_title(lan.seats==4||lan.stage==2?more:less);
         }else if(lan.stage==5||lan.stage==6){
             const auto port=find_edit(options,0),choose=named_button(options,L"Host game");
             if(!port||!choose||in_save||room.result!=Room::Result::idle||
-               !named_button(options,lan.seats==4?L"Players: 4":L"Players: 2"))return;
+               !named_label(options,lan.seats==4?L"Players: 4":L"Players: 2"))return;
             if(lan.stage==5&&ui.read_field(port,5)!=L"47771")return;
             lan.validated=lan.stage==6;
             ui.label(port,lan.validated?lan.port:L"42",TitleUi::edit_set);
@@ -169,6 +176,9 @@ void lan_title_tick(void* engine,float dt,bool idle){
     Lan::Status status;
     Room::Status room;
     if(now-lan.started>85000){
+#ifdef QDCOOP_WORLD_JOIN_FIXTURE
+        WorldJoinFixture::restore_heartbeat();
+#endif
 #ifdef QDCOOP_SOUND_TITLE_FIXTURE
         SoundFixture::cleanup();
 #endif
@@ -184,6 +194,8 @@ void lan_title_tick(void* engine,float dt,bool idle){
     if(now<not_before||!read_status(&room,sizeof(room))||!lan.read(&status,sizeof(status)))return;
     not_before=now+150;
 #ifdef QDCOOP_WORLD_JOIN_FIXTURE
+    wchar_t race_flag[2]{};
+    if(lan.active.room&&environment_title(L"QD_WORLD_JOIN_DUCK_RACE",race_flag,2))not_before=now+15;
     WorldJoinFixture::observe(instance);
     wchar_t failure_test[2]{};
     if(environment_title(L"QD_WORLD_JOIN_FAILURE",failure_test,2)&&WorldJoinFixture::failed){
@@ -191,8 +203,32 @@ void lan_title_tick(void* engine,float dt,bool idle){
             room.result==Room::Result::closed&&status.failure==Lan::Failure::timeout);
         return;
     }
+    if(!lan.host&&lan.active.room&&WorldJoinFixture::enemy_rehost_enabled()){
+        static unsigned stage{};
+        static Lan::Status departure;
+        if(!stage&&room.result==Room::Result::closed&&WorldJoinFixture::left&&
+           status.failure==Lan::Failure::departure&&WorldJoinFixture::enemy_lease_restored()){
+            departure=status;
+            marker(WorldJoinFixture::proof(L"enemy-original-restored").c_str());
+            if(lan.host_lan(2,49873))stage=1;
+        }else if(stage==1&&room.result==Room::Result::running&&status.phase==Lan::Phase::waiting&&
+                 status.room&&status.room!=lan.active.room&&WorldJoinFixture::enemy_lease_restored()){
+            if(leave_room()){
+                marker(WorldJoinFixture::proof(L"enemy-rehost-waiting").c_str());
+                stage=2;
+            }
+        }else if(stage==2&&room.result==Room::Result::closed){
+            finish_lan_title(instance,departure,lan.validated&&status.phase==Lan::Phase::closed&&
+                status.failure==Lan::Failure::none&&WorldJoinFixture::enemy_lease_restored());
+            return;
+        }
+        if(stage||room.result==Room::Result::closed)return;
+    }
 #endif
     if(lan.selected){
+#ifdef QDCOOP_WORLD_JOIN_FIXTURE
+        if(!lan.host)WorldJoinFixture::seed_guest(instance);
+#endif
 #ifdef QDCOOP_PLACED_ITEM_TITLE_FIXTURE
         if(lan.cycle==1){
             const auto port=static_cast<unsigned>(std::wcstoul(lan.port,nullptr,10));
@@ -206,7 +242,7 @@ void lan_title_tick(void* engine,float dt,bool idle){
 #endif
         if(lan.host&&room.result==Room::Result::running&&status.phase==Lan::Phase::waiting&&status.seats==lan.seats&&status.room
 #ifdef QDCOOP_WORLD_JOIN_FIXTURE
-           &&WorldJoinFixture::seed(instance)
+           &&WorldJoinFixture::seed_host(instance)
 #endif
         )
             marker(lan.listening);
@@ -225,6 +261,9 @@ void lan_title_tick(void* engine,float dt,bool idle){
         bool release_allowed=true;
 #ifdef QDCOOP_WORLD_JOIN_FIXTURE
         release_allowed=lan.active.room&&WorldJoinFixture::check(instance);
+        if(lan.host&&WorldJoinFixture::wipe_cut_enabled())
+            release_allowed=lan.active.room&&status.phase==Lan::Phase::waiting&&
+                marker_exists((WorldJoinFixture::directory()+L"/client-wipe-committed.txt").c_str());
 #endif
 #ifdef QDCOOP_COMBAT_REWARD_FIXTURE
         release_allowed=lan.active.room&&CombatRewardFixture::step(instance,now);
@@ -267,7 +306,11 @@ void lan_title_tick(void* engine,float dt,bool idle){
         }
         if(lan.active.room&&room.result==Room::Result::closed){
 #ifdef QDCOOP_WORLD_JOIN_FIXTURE
-            if(!lan.host&&!WorldJoinFixture::left)return;
+            if(!lan.host){
+                if(WorldJoinFixture::wipe_cut_enabled()){
+                    if(!WorldJoinFixture::wipe_original_binding(instance))return;
+                }else if(!WorldJoinFixture::left)return;
+            }
 #endif
             const bool clean=lan.host?(lan.leaving&&status.phase==Lan::Phase::closed&&status.failure==Lan::Failure::none):
                 (status.phase==Lan::Phase::failed&&status.failure==Lan::Failure::departure);
@@ -323,8 +366,11 @@ DWORD WINAPI start_lan_title(void*){
         const auto module=GetModuleHandleW(L"QDNativeBootstrap.dll");
         if(module&&load_export(module,"QDNativeReadStatus",read_status)&&load_export(module,"QDNativeLeaveRoom",leave_room)&&
            load_export(module,"QDNativeReadLanStatus",lan.read)&&load_export(module,"QDNativeReadWorldPhase",lan.world)&&
+#if defined(QDCOOP_PLACED_ITEM_TITLE_FIXTURE) || defined(QDCOOP_WORLD_JOIN_FIXTURE)
+           load_export(module,"QDNativeHostLan",lan.host_lan)&&
+#endif
 #ifdef QDCOOP_PLACED_ITEM_TITLE_FIXTURE
-           load_export(module,"QDNativeHostLan",lan.host_lan)&&load_export(module,"QDNativeJoinLan",lan.join_lan)&&
+           load_export(module,"QDNativeJoinLan",lan.join_lan)&&
 #endif
            attach_title_observer(module,&lan_title_tick))return 0;
         Sleep(100);

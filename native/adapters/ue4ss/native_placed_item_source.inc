@@ -6,6 +6,7 @@ struct PlacedEscrow {
 static Weak placed_source_save;
 static std::vector<PlacedEscrow> placed_source_escrows;
 static double placed_escrow_next;
+static double placed_source_deadline;
 
 static void placed_source_reset(){
     placed_source_save={};
@@ -77,31 +78,37 @@ static bool placed_source_point(void* pawn,Placed::Drop& drop){
     if(!valid(rotation[1])||!std::ranges::all_of(origin,valid))return false;
     constexpr double radians=.017453292519943295;
     const auto yaw=rotation[1]*radians;
-    const std::array<float,3> forward{origin[0]+95.f*static_cast<float>(std::cos(yaw)),
-        origin[1]+95.f*static_cast<float>(std::sin(yaw)),origin[2]};
+    const auto x=static_cast<float>(std::cos(yaw)),y=static_cast<float>(std::sin(yaw));
+    void* ignored[]{pawn};
+    const NativeActorArray ignored_actors{ignored,1,1};
     const auto cast=[&](const auto& start,const auto& end,FactoryParameters& args){
         args={};
         factory_put(args,fields[0],pawn);
         factory_put(args,fields[1],start);
         factory_put(args,fields[2],end);
         factory_put(args,fields[3],std::uint8_t{1});
+        factory_put(args,fields[6],ignored_actors);
         api.event(kismet,trace,args.data());
         return args[fields[4]]!=0;
     };
     alignas(16) FactoryParameters args{};
-    placed_source_stage=5;
-    if(cast(origin,forward,args))return false;
-    auto above=forward,below=forward;
-    above[2]+=30.f;
-    below[2]-=240.f;
-    placed_source_stage=6;
-    if(!cast(above,below,args))return false;
-    auto position=AnimU::field<std::array<float,3>>(args.data(),*api.offset(hit)+*api.offset(impact));
-    position[2]+=12.f;
-    if(!std::ranges::all_of(position,valid))return false;
-    std::ranges::transform(position,drop.position.begin(),[](float value){return static_cast<std::int32_t>(std::floor(value));});
-    drop.yaw=static_cast<std::int32_t>(std::floor(rotation[1]));
-    return true;
+    for(const float distance:{95.f,72.f,50.f}){
+        const std::array<float,3> forward{origin[0]+distance*x,origin[1]+distance*y,origin[2]};
+        placed_source_stage=5;
+        if(cast(origin,forward,args))continue;
+        auto above=forward,below=forward;
+        above[2]+=30.f;
+        below[2]-=240.f;
+        placed_source_stage=6;
+        if(!cast(above,below,args))continue;
+        auto position=AnimU::field<std::array<float,3>>(args.data(),*api.offset(hit)+*api.offset(impact));
+        position[2]+=12.f;
+        if(!std::ranges::all_of(position,valid))continue;
+        std::ranges::transform(position,drop.position.begin(),[](float value){return static_cast<std::int32_t>(std::floor(value));});
+        drop.yaw=static_cast<std::int32_t>(std::floor(rotation[1]));
+        return true;
+    }
+    return false;
 }
 
 static bool placed_source_ready(void* pawn){
@@ -141,6 +148,7 @@ extern "C" __declspec(dllexport) std::uint64_t QDEnemyQueueNativePlaceFromInspec
     if(QDEnemyNativePlaceAvailability(item)!=1||!placed_source_selected(widget,item)||
        placed_source_sequence==UINT64_MAX||!makeweak(placed_source_inspect,widget)||!makeweak(placed_source_request,item))return 0;
     placed_source_token=++placed_source_sequence;
+    placed_source_deadline=now()+1.5;
     return placed_source_token;
 }
 
@@ -158,6 +166,10 @@ extern "C" __declspec(dllexport) int QDEnemyQueueNativePlacedItem(void* item){
 
 static void placed_source_step(void* pawn,double time){
     const auto item=api.weakget(&placed_source_request);
+    if(!item&&!placed_source_token)return;
+    const bool ready=placed_source_ready(pawn);
+    if(placed_source_token&&item&&!ready&&time<placed_source_deadline&&
+       placed_source_selected(api.weakget(&placed_source_inspect),item))return;
     placed_source_request={};
     if(placed_source_token){
         placed_source_completed=placed_source_token;
@@ -167,7 +179,7 @@ static void placed_source_step(void* pawn,double time){
         placed_source_inspect={};
         if(!placed_source_selected(widget,item))return;
     }
-    if(!item||!placed_source_ready(pawn))return;
+    if(!item||!ready)return;
     placed_source_stage=1;
     const auto& binding=medic_runtime.save;
     const auto save=medic_active(binding,pawn);
@@ -177,7 +189,8 @@ static void placed_source_step(void* pawn,double time){
     drop.room=placed_source_room();
     placed_source_stage=2;
     if(drop.owner.empty()||!catalog_path(item,drop.item)||placed_item_data(drop.item)!=item||!placed_stackable(item)||
-       !catalog_path(api.weakget(&attached_world),drop.map)||!placed_source_point(pawn,drop))return;
+       !catalog_path(api.weakget(&attached_world),drop.map))return;
+    if(!placed_source_point(pawn,drop)){placed_source_result=-2;return;}
     const int before=medic_count(binding,item);
     placed_source_stage=7;
     if(before<1)return;
@@ -202,11 +215,12 @@ static void placed_source_step(void* pawn,double time){
     placed_source_stage=8;
     if(!placed_save_prepare(pawn,markers,drop.item,before-1,proof)||!placed_item_bind(time))return;
     PlacedItemVisual visual{drop,world_key,{}};
-    visual.ready=placed_item_create(pawn,visual);
+    if(host_role)visual.ready=placed_item_create(pawn,visual);
+    const bool prepared=host_role?visual.ready:placed_item_model(item).component!=nullptr;
     placed_source_stage=9;
-    if(visual.ready){
-        // The stock Blueprint must consume exactly one item before this actor
-        // becomes a published ground record or can answer interaction.
+    if(prepared){
+        // Validate the model before debiting. The guest creates its actor from
+        // the host's durable ground record after the deposit is accepted.
         medic_inventory_delta(pawn,item,-1);
         if(medic_active(binding,pawn)==save&&medic_count(binding,item)==before-1){
             for(const auto& marker:markers)medic_set_marker(binding,save,marker.key,marker.value);
@@ -215,8 +229,6 @@ static void placed_source_step(void* pawn,double time){
             else {
                 placed_escrow_busy=true;
                 placed_escrow_next=0;
-                visual.wanted=false;
-                if(!destroy_owned_actor(visual.actor,false))placed_item_visuals.push_back(std::move(visual));
             }
             placed_operation=PlacedOperation::place;
             placed_save_begin(std::move(proof),time);
@@ -227,8 +239,10 @@ static void placed_source_step(void* pawn,double time){
             return;
         }
     }
-    visual.wanted=false;
-    if(!destroy_owned_actor(visual.actor,false))placed_item_visuals.push_back(std::move(visual));
+    if(host_role){
+        visual.wanted=false;
+        if(!destroy_owned_actor(visual.actor,false))placed_item_visuals.push_back(std::move(visual));
+    }
 }
 
 static bool placed_source_register(void* pawn,const Placed::Drop& drop,std::string_view raw,bool legacy,double time){

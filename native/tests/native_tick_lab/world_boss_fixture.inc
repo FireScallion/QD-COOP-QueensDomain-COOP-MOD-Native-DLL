@@ -2,13 +2,19 @@ static constexpr std::string_view fixture_shrine_boss_class=
     "/Game/Enemies/Boner_00/Skeletons24/ShrineBoss/Boner_Shrineboss_BP.Boner_Shrineboss_BP_C";
 static U::WeakKey fixture_boss_spawner,fixture_boss_actor;
 
-static bool run_world_boss_stage(){
+static bool run_world_boss_stage(Address engine){
     static unsigned stage{};
-    static bool positioned{},spawned{},commanded{};
+    static bool streaming{},positioned{},spawned{},commanded{};
     constexpr std::array proofs{L"boss-phase-ready.txt",L"boss-phase-defeated.txt"};
     if(stage==proofs.size())return all_player_markers(proofs.back());
     const auto pawn=resolve(held_pawn);
     if(!pawn)return false;
+    if(host&&!streaming){
+        constexpr std::array lists{FixtureStreamList{"/Game/RuinsLevel/Maps/LevelLists/GreenRuins.GreenRuins",7}};
+        const auto instance=object_field(engine,"GameInstance");
+        streaming=instance&&fixture_stock_streams(engine,instance,lists);
+        return false;
+    }
     if(!positioned){
         held_pose.position={18265.f+3.f*role_index,-7750.f,80.f};
         positioned=apply_test_pose(pawn,held_pose);

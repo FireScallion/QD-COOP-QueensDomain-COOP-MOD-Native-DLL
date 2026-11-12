@@ -3,7 +3,7 @@ struct PlaceMenu {
     UE::WeakKey game_menu{},inspect{},button{},pending_item{};
     UE::WeakKey game_type{},inspect_type{},close{},close_internal{},update{},equipment{};
     std::uint64_t token{};
-    ULONGLONG next{};
+    ULONGLONG next{},pending_until{},failure_until{};
     int enabled{-1};
 
     bool type(Address object,UE::WeakKey& key,std::string_view path) {
@@ -42,6 +42,7 @@ struct PlaceMenu {
         }
         button=inspect=game_menu=pending_item={};
         token=0;
+        pending_until=failure_until=0;
         enabled=-1;
     }
 
@@ -70,7 +71,10 @@ struct PlaceMenu {
         if(token||enabled!=1||ui.get(button)!=object)return;
         const auto modal=ui.get(inspect);
         if(modal&&pause_invite.flag(modal,"IsOpen"))
-            if(const auto item=ui.object(modal,"CurrentItem"))ui.remember(pending_item,item);
+            if(const auto item=ui.object(modal,"CurrentItem")){
+                ui.remember(pending_item,item);
+                pending_until=GetTickCount64()+1500;
+            }
     }
 
     void tick(Address engine,ULONGLONG now) {
@@ -101,19 +105,32 @@ struct PlaceMenu {
                 clear();
                 return;
             }
+            if(result<0){
+                const auto widget=ui.get(button);
+                const auto text=result==-2?(ui.chinese()?L"此处无法放置":L"Cannot place here"):
+                    (ui.chinese()?L"放置失败，请重试":L"Placement failed. Try again.");
+                if(widget)menu.button_caption(widget,text);
+                failure_until=now+2200;
+            }
         }
         const auto available=core.place_available(reinterpret_cast<void*>(item));
         if(!available){clear();return;}
         if(!ui.get(button)&&!mount(inventory,modal))return;
+        if(failure_until&&now>=failure_until){
+            failure_until=0;
+            menu.button_caption(ui.get(button),ui.chinese()?L"放置":L"Place");
+        }
         if(available!=enabled){
             unsigned char state=available==1;
             event(ui.get(button),ui.get(set_enabled),&state);
             enabled=available;
         }
         const auto request=ui.get(pending_item);
-        pending_item={};
-        if(request&&request==item&&available==1)
+        if(!request||request!=item||now>=pending_until)pending_item={};
+        else if(available==1){
             token=core.place_queue(reinterpret_cast<void*>(modal),reinterpret_cast<void*>(item));
+            if(token)pending_item={};
+        }
     }
 };
 PlaceMenu place_menu;

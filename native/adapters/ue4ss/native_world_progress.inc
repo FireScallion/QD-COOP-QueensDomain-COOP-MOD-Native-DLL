@@ -1,7 +1,10 @@
 namespace WP=qdcoop::world_progress;
 using WorldMapRemove=bool(*)(void*,const void*,const void*);
 static void world_actor_queue(const WP::Guid& guid);
+static void world_breakables_observe(void* pawn,void* save,double time);
+static bool world_guest_reload_completed();
 static void world_mechanisms_capture(void* pawn,double time,std::vector<WP::MechanismState>& out);
+static void world_special_capture(void* pawn,double time,std::vector<WP::MechanismState>& out);
 static void world_barriers_capture(void* pawn,double time,WP::Snapshot& out);
 static void world_barriers_reset();
 static void world_stream_observe(void* pawn,double time);
@@ -10,6 +13,8 @@ static void world_stream_reset();
 static void world_music_capture(void* save,double time,std::string& out);
 static void world_music_reset();
 static void world_story_reset();
+static void world_story_observe(void* save,double time);
+static bool world_story_preserve(const std::vector<WP::NamedState>& names,const AnimU::NameKey& key);
 static void native_placed_items_snapshot(const std::vector<WP::NamedState>& names);
 static void* load_world_asset(std::string_view path,unsigned type,bool class_asset,void* class_base);
 
@@ -30,7 +35,7 @@ struct WorldProgressRuntime {
     std::vector<AnimU::NameKey> quests;
     double next_bind{},next_capture{},next_apply{},next_ack{};
     double next_notify_bind{};
-    bool ready{},fault{},notify{},notifiers_bound{},force_revision{};
+    bool ready{},fault{},notify{},notifiers_bound{},force_revision{},initial_reload{};
 };
 static WorldProgressRuntime world_progress;
 
@@ -42,6 +47,7 @@ static void world_progress_reset(){
     world_barriers_reset();
 }
 static bool world_progress_ready(){return world_progress.ready&&!world_progress.fault;}
+static bool world_guest_waiting(){return !host_role&&active_peer_mask&&(!world_progress.applied.number||world_progress.initial_reload);}
 static MedicMap world_actor_map(void* type){
     const auto field=catalog_field(type,"SavableActorStates",80);
     if(!medic_field_class(field,"MapProperty"))return {};
@@ -238,6 +244,12 @@ static bool world_progress_apply(void* save,const WP::Snapshot& desired,bool aut
     if(!world_progress_plan(current.actors,desired.actors,world_progress.actors,std::less<>{},guid,edits)||
        !world_progress_plan(current.names,desired.names,medic_runtime.save.markers,WP::name_less,name,edits)||
        !world_progress_plan_items(save,current,desired,item_edits))return false;
+    if(!staging&&!host_role)std::erase_if(edits,[&](const auto& edit){
+        if(edit.map.field!=medic_runtime.save.markers.field)return false;
+        AnimU::NameKey key{};
+        std::memcpy(&key,edit.key.data(),sizeof(key));
+        return world_story_preserve(desired.names,key);
+    });
     const auto apply=[&](const auto& plan,std::size_t& attempted){
         for(const auto& edit:plan){
             ++attempted;
@@ -299,7 +311,10 @@ static void receive_world_progress(const ReceivedPacket& received,unsigned kind,
     }
     WP::Part part{};
     if(received.peer||kind!=WP::snapshot_kind||!WP::decode(envelope,received.packet,part))return;
-    if(part.revision==state.applied){world_progress_ack(state.applied,time);return;}
+    if(part.revision==state.applied){
+        if(!state.initial_reload)world_progress_ack(state.applied,time);
+        return;
+    }
     if(state.inbox.push(part))state.ready=false;
 }
 static void world_progress_host(void* save,void* pawn,double time){
@@ -312,6 +327,7 @@ static void world_progress_host(void* save,void* pawn,double time){
         state.ready=world_progress_capture(save,snapshot);
         if(state.ready){
             world_mechanisms_capture(pawn,time,snapshot.mechanisms);
+            world_special_capture(pawn,time,snapshot.mechanisms);
             world_stream_capture(pawn,time,snapshot);
             world_barriers_capture(pawn,time,snapshot);
             world_music_capture(save,time,snapshot.music);
@@ -344,12 +360,24 @@ static void world_progress_host(void* save,void* pawn,double time){
 }
 static void world_progress_guest(void* save,double time){
     auto& state=world_progress;
-    if(state.fault||!checkpoint_medic_idle())return;
+    if(state.fault||state.initial_reload||!checkpoint_medic_idle())return;
     const auto revision=state.inbox.revision();
     if(revision.number>state.applied.number){
         if(!state.inbox.complete()||(revision==state.rejected&&time<state.next_apply))return;
         WP::Snapshot snapshot;
-        if(!state.inbox.snapshot(snapshot)||!world_progress_apply(save,snapshot,true)){
+        bool accepted=state.inbox.snapshot(snapshot);
+        if(accepted&&!state.applied.number&&!world_guest_reload_completed()){
+            WP::Snapshot local;
+            accepted=world_progress_capture(save,local);
+            if(accepted&&WP::actor_state_rolled_back(local.actors,snapshot.actors)){
+                state.authoritative=std::move(snapshot);
+                state.applied=revision;
+                state.initial_reload=true;
+                state.ready=true;
+                return;
+            }
+        }
+        if(!accepted||!world_progress_apply(save,snapshot,true)){
             state.rejected=revision;
             state.next_apply=time+.5;
             ++world_progress_errors;
@@ -376,6 +404,8 @@ static void world_progress_step(void* pawn,double time){
         return;
     }
     native_placed_item_save_resume(save,time);
+    world_breakables_observe(pawn,save,time);
+    world_story_observe(save,time);
     if(host_role)world_progress_host(save,pawn,time);
     else if(!native_placed_item_save_pending())world_progress_guest(save,time);
 }
@@ -395,7 +425,7 @@ static void world_progress_notify(void* pawn,double time){
     auto& state=world_progress;
     const auto& binding=medic_runtime.save;
     const auto gi=api.weakget(&binding.gi);
-    if(host_role||!world_progress_ready()||(!state.notify&&state.quests.empty())||!gi||
+    if(!world_progress_ready()||(!state.notify&&state.quests.empty())||!gi||
        !medic_active(binding,pawn)||!world_progress_bind_notifiers(time))return;
     if(state.notify){
         state.notify=false;

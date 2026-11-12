@@ -59,26 +59,22 @@ bool caption_is(Address button,std::wstring_view expected){
     return text_is(ui.first_text(ui.object(button,"Subcontent")),expected);
 }
 
-Address named_button(Address box,std::wstring_view caption){
-    if(!ui.is(box,ui.get(TitleUi::vertical_box_type)))return 0;
+template<class Match> Address find_menu_control(Address box,const Match& matches,unsigned depth=0){
+    if(depth>4||!ui.is(box,ui.get(TitleUi::panel_type)))return 0;
     const auto count=ui.count(box);
     for(int i=0;i<count&&i<32;++i){
-        auto child=ui.child(box,i);
-        if(ui.is(child,ui.get(TitleUi::size_type)))child=ui.child(child,0);
-        if(caption_is(child,caption))return child;
+        const auto child=ui.child(box,i);
+        if(matches(child))return child;
+        if(const auto nested=find_menu_control(child,matches,depth+1))return nested;
     }
     return 0;
 }
+Address named_button(Address box,std::wstring_view caption){
+    return find_menu_control(box,[&](Address child){return caption_is(child,caption);});
+}
 
 bool named_label(Address box,std::wstring_view caption){
-    if(!ui.is(box,ui.get(TitleUi::panel_type)))return false;
-    const auto count=ui.count(box);
-    for(int i=0;i<count&&i<32;++i){
-        auto child=ui.child(box,i);
-        if(ui.is(child,ui.get(TitleUi::size_type)))child=ui.child(child,0);
-        if(text_is(child,caption))return true;
-    }
-    return false;
+    return find_menu_control(box,[&](Address child){return text_is(child,caption);})!=0;
 }
 bool heading_is(Address panel,std::wstring_view caption){
     const auto selection=ui.object(panel,"OptionsSelectMenu");
@@ -308,7 +304,8 @@ void title_probe_tick(void* engine,float dt,bool idle){
         const auto host=named_button(options,localized(L"Host Steam game",L"主持STEAM游戏"));
         if(host){TitleUi::event(host,select,nullptr);return;}
         const auto choose=named_button(options,localized(L"Choose save",L"选择存档"));
-        if(!choose||!named_button(options,localized(L"Players: 2",L"玩家人数：2")))return;
+        if(!choose||!named_label(options,localized(L"Players: 2",L"玩家人数：2"))||
+           !named_button(options,L"-")||!named_button(options,L"+"))return;
         TitleUi::event(choose,select,nullptr);
     }else if(title_stage==6){
         if(!in_save)return;
@@ -327,11 +324,13 @@ void title_probe_tick(void* engine,float dt,bool idle){
     }else if(title_stage==9){
         const auto host=named_button(options,localized(L"Host Steam game",L"主持STEAM游戏"));
         if(host){TitleUi::event(host,select,nullptr);return;}
-        auto seats=named_button(options,localized(L"Players: 2",L"玩家人数：2"));
-        if(!seats)seats=named_button(options,localized(L"Players: 3",L"玩家人数：3"));
-        if(seats){TitleUi::event(seats,select,nullptr);return;}
+        if(named_label(options,localized(L"Players: 2",L"玩家人数：2"))||
+           named_label(options,localized(L"Players: 3",L"玩家人数：3"))){
+            if(const auto more=named_button(options,L"+"))TitleUi::event(more,select,nullptr);
+            return;
+        }
         const auto choose=named_button(options,localized(L"Choose save",L"选择存档"));
-        if(!choose||!named_button(options,localized(L"Players: 4",L"玩家人数：4")))return;
+        if(!choose||!named_label(options,localized(L"Players: 4",L"玩家人数：4")))return;
         TitleUi::event(choose,select,nullptr);
     }else if(title_stage==10){
         if(!in_save)return;

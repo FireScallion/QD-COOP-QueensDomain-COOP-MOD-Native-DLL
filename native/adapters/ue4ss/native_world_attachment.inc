@@ -29,8 +29,10 @@ enum WorldObject {
     world_progress_remove,world_actor_first,world_actor_chest=world_actor_first,world_actor_restore,
     world_actor_clear,world_actor_collision,world_actor_play,world_actor_playing,world_actor_play_sound,
     world_actor_sound_type,world_breakable_barricade,world_breakable_permanent,
+    world_breakable_hit,world_breakable_break,
     world_mechanism_first,world_mechanism_door=world_mechanism_first,
     world_mechanism_lever,world_mechanism_open,world_mechanism_close,world_mechanism_pull,world_mechanism_reset,
+    world_mechanism_trigger,world_mechanism_trigger_fire,
     world_quest_first,world_quest_notify=world_quest_first,world_quest_update,
     world_pause_first,world_pause_mode=world_pause_first,world_pause_game_get,world_pause_game_set,
     world_pause_menu_set,world_pause_enemy_set,world_pause_overlay,
@@ -55,6 +57,7 @@ enum WorldObject {
     world_shrine_stop,world_shrine_seek,
     world_library_book,world_library_gate,
     world_elevator_type,world_elevator_lever,world_elevator_start,world_elevator_update,world_elevator_location,
+    world_elevator_cancel,world_elevator_started,world_elevator_stopped,world_elevator_start_fx,world_elevator_stop_fx,
     world_barrier_primitive,world_barrier_relative,world_barrier_hidden,
     world_barrier_actor,world_barrier_actor_get,world_barrier_actor_set,world_barrier_actor_hidden,world_barrier_actor_parts,
     world_barrier_bounds,world_barrier_scale,world_barrier_data_float,world_barrier_data_vector,
@@ -87,6 +90,9 @@ enum WorldObject {
     world_cine_lock,world_cine_unlock,world_cine_hide,world_cine_unhide,
     world_cine_first,world_cine_ending1=world_cine_first,world_cine_ending2,world_cine_ending3,
     world_cine_ending4,world_cine_ritual,world_cine_sipeha,
+    world_rest_spawner,world_rest_event,world_rest_utils,world_rest_clear,
+    world_story_shrine_npc,world_story_duck_pickup,world_story_pickup_state,world_story_pickup_refresh,
+    world_special_secret,world_special_dagger,world_special_gargoyle,world_special_time,
     world_object_count
 };
 static constexpr std::string_view world_paths[]{
@@ -207,12 +213,16 @@ static constexpr std::string_view world_paths[]{
     "/Script/Engine.SoundBase",
     "/Game/Blueprints/BreakableBarricade/BreakableBarricade.BreakableBarricade_C",
     "/Game/Props/Containers/Permabreakable_base.Permabreakable_base_C",
+    "/Game/Blueprints/BreakableBarricade/BreakableBarricade.BreakableBarricade_C.TookHit",
+    "/Game/Props/Containers/Permabreakable_base.Permabreakable_base_C.Break",
     "/Game/Blueprints/Door_Base.Door_Base_C",
     "/Game/LD45/Blueprints/Objects/Gate/Lever.Lever_C",
     "/Game/Blueprints/Door_Base.Door_Base_C.OpenDoor",
     "/Game/Blueprints/Door_Base.Door_Base_C.CloseDoor",
     "/Game/LD45/Blueprints/Objects/Gate/Lever.Lever_C.AnimateLeverPull",
     "/Game/LD45/Blueprints/Objects/Gate/Lever.Lever_C.AnimateLeverReset",
+    "/Game/Blueprints/ActivationTrigger.ActivationTrigger_C",
+    "/Game/Blueprints/ActivationTrigger.ActivationTrigger_C.DoTrigger",
     "/Game/Blueprints/FS_GameInstance.FS_GameInstance_C.GI_NotifyWorldStateChanged",
     "/Game/Blueprints/FS_GameInstance.FS_GameInstance_C.GI_UpdateQuestState",
     "/Script/Engine.GameplayStatics.GetGameMode",
@@ -281,6 +291,11 @@ static constexpr std::string_view world_paths[]{
     "/Game/Blueprints/Elevator/Elevator_Base.Elevator_Base_C.StartElevatorTowardsEnd",
     "/Game/Blueprints/Elevator/Elevator_Base.Elevator_Base_C.UpdateLevers",
     "/Script/Engine.SceneComponent.K2_GetComponentLocation",
+    "/Game/Blueprints/Elevator/Elevator_Base.Elevator_Base_C.CancelCurrentMove",
+    "/Game/Blueprints/Elevator/Elevator_Base.Elevator_Base_C.NotifyLeversAboutStartMove",
+    "/Game/Blueprints/Elevator/Elevator_Base.Elevator_Base_C.StoppedMoving",
+    "/Game/Blueprints/Elevator/Elevator_Base.Elevator_Base_C.StartParticles",
+    "/Game/Blueprints/Elevator/Elevator_Base.Elevator_Base_C.StopParticles",
     "/Script/Engine.PrimitiveComponent",
     "/Script/Engine.SceneComponent.GetRelativeTransform",
     "/Script/Engine.SceneComponent.SetHiddenInGame",
@@ -391,7 +406,19 @@ static constexpr std::string_view world_paths[]{
     "/Game/Cutscenes/Ending3/Ending3CutsceneManager.Ending3CutsceneManager_C",
     "/Game/Cutscenes/Ending4/Ending4CutsceneManager.Ending4CutsceneManager_C",
     "/Game/Cutscenes/RitualCutscene/RitualCutsceneManager.RitualCutsceneManager_C",
-    "/Game/Cutscenes/SipehaTransition/SipehaTransitionCutsceneManager.SipehaTransitionCutsceneManager_C"
+    "/Game/Cutscenes/SipehaTransition/SipehaTransitionCutsceneManager.SipehaTransitionCutsceneManager_C",
+    "/Game/Enemies/EnemySpawner.EnemySpawner_C",
+    "/Game/Enemies/EnemySpawner.EnemySpawner_C.PlayerRested",
+    "/Script/QueensDomain.Default__FS_SaveGameUtils",
+    "/Script/QueensDomain.FS_SaveGameUtils.ClearAllEnemySaveStates",
+    "/Game/Enemies/Boner_00/Skeletons24/ShrineBoss/Shrineboss-DummyNPC_BP.Shrineboss-DummyNPC_BP_C",
+    "/Game/Items/KeyItems/ShopProgressionKey/StoneDuckShopUnlock_BP.StoneDuckShopUnlock_BP_C",
+    "/Game/Blueprints/ItemPickup_Base.ItemPickup_Base_C.SetState",
+    "/Game/Blueprints/ItemPickup_Base.ItemPickup_Base_C.RefreshFullState",
+    "/Game/Blueprints/SecretWall.SecretWall_C",
+    "/Game/RuinsLevel/Models/DaggerButton/DaggerButton_DamageTarget.DaggerButton_DamageTarget_C",
+    "/Game/Enemies/Gargler_00/Gargoyle_Switch.Gargoyle_Switch_C",
+    "/Script/Engine.KismetSystemLibrary.GetGameTimeInSeconds"
 };
 static_assert(std::size(world_paths)==world_object_count);
 static std::array<Weak,world_object_count+factory_metadata_count> world_inputs{};
@@ -423,7 +450,7 @@ static void scan_world_inputs(unsigned budget,bool include_cutscenes=false){
     std::array<unsigned,world_inputs.size()> missing{};
     unsigned size=0;
     for(unsigned i=include_cutscenes?static_cast<unsigned>(world_cine_base):0u;i<count;++i){
-        if(!include_cutscenes&&i>=world_cine_base&&i<world_object_count)continue;
+        if(!include_cutscenes&&i>=world_cine_base&&i<=world_cine_sipeha)continue;
         if(!world_input(i))missing[size++]=i;
     }
     if(!size)return;

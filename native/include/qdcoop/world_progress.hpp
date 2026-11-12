@@ -11,6 +11,13 @@
 namespace qdcoop::world_progress {
 using Guid=std::array<std::int32_t,4>;
 struct ActorState { Guid key{}; std::int32_t value{}; bool operator==(const ActorState&) const = default; };
+inline bool actor_state_rolled_back(const std::vector<ActorState>& local,const std::vector<ActorState>& host){
+    return std::ranges::any_of(local,[&](const auto& state){
+        if(state.value<=0)return false;
+        const auto wanted=std::ranges::lower_bound(host,state.key,{},&ActorState::key);
+        return wanted==host.end()||wanted->key!=state.key||wanted->value<state.value;
+    });
+}
 struct ActorItemState { Guid key{}; std::string path; bool operator==(const ActorItemState&) const = default; };
 struct NamedState { std::string key; std::int32_t value{}; bool operator==(const NamedState&) const = default; };
 enum class BarrierKind : std::uint32_t {necro=1,desert,library,aqua_exit,graveyard,aqua_entry,bridge,castle};
@@ -23,7 +30,7 @@ struct BarrierState {
     bool hidden{},visible{true};
     bool operator==(const BarrierState&) const = default;
 };
-enum class MechanismKind : std::uint32_t { door=1,lever };
+enum class MechanismKind : std::uint32_t { door=1,lever,secret,dagger_button,gargoyle };
 struct MechanismState {
     Guid key{};
     MechanismKind kind{};
@@ -147,8 +154,8 @@ inline bool valid(const Snapshot& value){
     }
     for(unsigned i=0;i<value.mechanisms.size();++i){
         const auto& state=value.mechanisms[i];
-        if(state.key==Guid{}||state.kind<MechanismKind::door||state.kind>MechanismKind::lever||
-           state.activations>10000||(state.kind==MechanismKind::lever&&state.activations)||
+        if(state.key==Guid{}||state.kind<MechanismKind::door||state.kind>MechanismKind::gargoyle||
+           state.activations>10000||(state.kind!=MechanismKind::door&&state.activations)||
            (i&&!mechanism_less(value.mechanisms[i-1],state)))return false;
     }
     return valid(value.streaming)&&valid(value.arrival)&&(!value.arrival.serial||value.streaming.known)&&

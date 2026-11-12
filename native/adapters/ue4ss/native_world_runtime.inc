@@ -41,6 +41,8 @@ static FactoryOffsets factory_offsets;
 static std::array<Weak,factory_metadata_count> factory_metadata{};
 static Weak automatic_context;
 static unsigned automatic_limit,automatic_guest_cursor;
+static double factory_next_cold_load;
+static void* load_world_asset(std::string_view path,unsigned type,bool class_asset,void* class_base);
 static double automatic_next_scan;
 static bool factory_configured;
 
@@ -202,6 +204,94 @@ static bool factory_take_ownership(const Roster::Offer& offer,void* actor){
     return valid&&ownership_take(offer.id,offer.generation,audio,static_cast<unsigned>(result.count));
 }
 
+struct StockEnemyLease {
+    Weak actor,controller,movement;
+    bool hidden{},collision{},tick{},ai_disabled{},controller_tick{},movement_tick{};
+};
+static std::vector<StockEnemyLease> stock_enemy_leases;
+static double stock_enemy_next_scan{};
+
+static void stock_enemy_hold_ticks(Weak& key,bool& was_ticking,void* current,bool component){
+    const auto type=own_meta(component?11:12);
+    const auto method=component?death_mesh_tick:death_actor_tick;
+    const unsigned getter=component?3:0;
+    if(current&&!api.isa(current,type))current=nullptr;
+    const auto previous=api.weakget(&key);
+    if(previous!=current){
+        if(previous&&api.isa(previous,type)&&!own_bool(previous,getter))own_set(previous,method,was_ticking);
+        key={};
+        if(current&&!makeweak(key,current))return;
+        was_ticking=current&&own_bool(current,getter);
+    }
+    if(current&&own_bool(current,getter))own_set(current,method,false);
+}
+static void stock_enemy_hold(void* actor,StockEnemyLease& lease){
+    if(!api.getbool(bool_props[3],actor,0))own_set(actor,hide_fn,true);
+    if(own_bool(actor,1))own_set(actor,own_meta(2),false);
+    if(own_bool(actor,0))own_set(actor,death_actor_tick,false);
+    if(!api.getbool(ownership_properties[3],actor,0))api.setbool(ownership_properties[3],actor,true,0);
+    void* controller{};
+    api.event(actor,own_meta(4),&controller);
+    stock_enemy_hold_ticks(lease.controller,lease.controller_tick,controller,false);
+    stock_enemy_hold_ticks(lease.movement,lease.movement_tick,own_pointer(actor,0),true);
+}
+static bool native_stock_enemies_cleanup(){
+    stock_enemy_next_scan=0.;
+    if(stock_enemy_leases.empty())return true;
+    if(!ownership_alive())return false;
+    for(const auto& lease:stock_enemy_leases){
+        const auto actor=api.weakget(&lease.actor);
+        if(!actor||actor_is_destroying(actor))continue;
+        own_set(actor,hide_fn,lease.hidden);
+        own_set(actor,own_meta(2),lease.collision);
+        own_set(actor,death_actor_tick,lease.tick);
+        api.setbool(ownership_properties[3],actor,lease.ai_disabled,0);
+        if(const auto controller=api.weakget(&lease.controller);controller&&api.isa(controller,own_meta(12)))
+            own_set(controller,death_actor_tick,lease.controller_tick);
+        if(const auto movement=api.weakget(&lease.movement);movement&&api.isa(movement,own_meta(11)))
+            own_set(movement,death_mesh_tick,lease.movement_tick);
+    }
+    stock_enemy_leases.clear();
+    return true;
+}
+
+static void native_stock_enemies_step(void* context,double time){
+    if(host_role||!active_peer_mask){
+        native_stock_enemies_cleanup();
+        return;
+    }
+    if(time<stock_enemy_next_scan||!native_get_actors||!native_free)return;
+    stock_enemy_next_scan=time+.5;
+    std::erase_if(stock_enemy_leases,[](const auto& lease){return !api.weakget(&lease.actor);});
+    std::unordered_set<void*> owned;
+    for(const auto& entry:enrollments)if(const auto actor=api.weakget(&entry.replica))owned.insert(actor);
+    for(auto& lease:stock_enemy_leases)
+        if(const auto actor=api.weakget(&lease.actor);actor&&!actor_is_destroying(actor)){
+            stock_enemy_hold(actor,lease);
+            owned.insert(actor);
+        }
+    NativeActorArray entries{};
+    native_get_actors(context,base_class,&entries);
+    if(entries.data&&entries.count>=0&&entries.capacity>=entries.count&&entries.capacity<=65536){
+        for(int i=0;i<entries.count&&stock_enemy_leases.size()<4096;++i){
+            const auto actor=entries.data[i];
+            if(!actor||owned.contains(actor)||actor_is_destroying(actor))continue;
+            if(!enemy_catalog_id(AnimU::field<void*>(actor,16),C::classes,enemy_classes)||
+               !factory_configure_ownership(actor))continue;
+            StockEnemyLease lease;
+            if(!makeweak(lease.actor,actor))continue;
+            lease.hidden=api.getbool(bool_props[3],actor,0);
+            lease.collision=own_bool(actor,1);
+            lease.tick=own_bool(actor,0);
+            lease.ai_disabled=api.getbool(ownership_properties[3],actor,0);
+            stock_enemy_hold(actor,lease);
+            stock_enemy_leases.push_back(lease);
+            ++stock_enemies_suppressed;
+        }
+    }
+    if(entries.data)native_free(entries.data);
+}
+
 static bool factory_create_replica(void* context,Enrollment& entry,void* type,void* asset){
     const auto& offer=entry.offer;
     auto actor=factory_spawn(context,type,offer.location,entry.replica);
@@ -232,6 +322,7 @@ static bool factory_rollback(unsigned index){
 }
 
 static void automatic_guest_step(void* context,double time){
+    native_stock_enemies_step(context,time);
     if(!unconfirmed_offers)return;
     constexpr unsigned attempts_per_tick=2;
     unsigned attempted=0;
@@ -245,8 +336,20 @@ static void automatic_guest_step(void* context,double time){
             entry.factory_ready=false;
         if(!entry.factory_ready){
             if(!factory_rollback(index)){entry.factory_retry=time+.2;continue;}
-            const auto type=api.weakget(&enemy_classes.keys[entry.offer.class_id]);
-            const auto asset=api.weakget(&enemy_meshes.keys[entry.offer.mesh_id]);
+            const auto class_id=entry.offer.class_id,mesh_id=entry.offer.mesh_id;
+            auto type=api.weakget(&enemy_classes.keys[class_id]);
+            auto asset=api.weakget(&enemy_meshes.keys[mesh_id]);
+            if((!type||!asset)&&time>=factory_next_cold_load&&
+               native_enemy_distance(native_actor_location(context),entry.offer.location)<9000.*9000.){
+                factory_next_cold_load=time+.25;
+                if(!type){
+                    type=load_world_asset(C::classes[class_id],UINT32_MAX,true,base_class);
+                    if(type)cache_native_enemy_asset(type,false);
+                }else{
+                    asset=load_world_asset(C::meshes[mesh_id],catalog_skeletal_mesh,false,nullptr);
+                    if(asset)cache_native_enemy_asset(asset,true);
+                }
+            }
             if(!type||!asset){++factory_unloaded;entry.factory_retry=time+1.;continue;}
             if(!factory_create_replica(context,entry,type,asset)){
                 ++factory_failed;
@@ -307,8 +410,11 @@ static void player_step(void* context,double time);
 static void native_life_step(void* pawn,double time);
 static bool checkpoint_step(void* pawn,double time);
 static void world_progress_step(void* pawn,double time);
+static bool world_guest_waiting();
 static void world_actor_step(void* pawn,double time);
 static void world_mechanisms_step(void* pawn,double time);
+static void native_door_triggers_step(void* pawn,double time);
+static void world_special_step(void* pawn,double time);
 static void world_barriers_step(void* pawn,double time);
 static void world_progress_notify(void* pawn,double time);
 static void native_pause_step(void* pawn,double time);
@@ -326,9 +432,11 @@ static void world_music_step(double time);
 static void world_scene_step(void* pawn,double time);
 static bool world_scene_busy();
 static void world_story_step(void* pawn,double time);
+static bool world_story_shop_active();
 static void world_library_step(void* pawn,double time);
 static void world_elevator_step(void* pawn,double time);
 static void native_reward_step(void* pawn,double time);
+static void native_enemy_rest_step(void* pawn,double time);
 
 static void native_world_step(double time){
     if(!automatic_limit)return;
@@ -343,15 +451,19 @@ static void native_world_step(double time){
     native_projectile_step(context,time);
     native_sound_step(context,time);
     world_progress_step(context,time);
+    if(world_guest_waiting())return;
+    native_enemy_rest_step(context,time);
     native_placed_items_step(context,time);
     world_stream_step(context,time);
     world_scene_step(context,time);
-    if(!world_scene_busy())world_music_step(time);
+    if(!world_scene_busy()&&!world_story_shop_active())world_music_step(time);
     world_story_step(context,time);
     world_library_step(context,time);
     world_elevator_step(context,time);
     world_actor_step(context,time);
     world_mechanisms_step(context,time);
+    native_door_triggers_step(context,time);
+    world_special_step(context,time);
     world_barriers_step(context,time);
     world_progress_notify(context,time);
     if(!world_scene_busy()&&checkpoint_step(context,time))return;

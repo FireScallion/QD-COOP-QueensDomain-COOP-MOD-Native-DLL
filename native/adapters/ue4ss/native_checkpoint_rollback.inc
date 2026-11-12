@@ -41,8 +41,19 @@ static bool checkpoint_wipe_ready(const CP::Roster& roster,double time){
 }
 static bool checkpoint_can_wipe(double time){
     const auto& cp=native_checkpoint;
-    return cp.latest.token&&cp.latest_here&&rollback.stage!=RollbackStage::failed&&checkpoint_medic_idle()&&
-           (!host_role||cp.latest.roster==checkpoint_host_roster())&&checkpoint_wipe_ready(cp.latest.roster,time);
+    if(!cp.latest.token||!cp.latest_here||!active_peer_mask||
+       (host_role&&cp.latest.roster!=checkpoint_host_roster()))return false;
+    const auto self=checkpoint_self();
+    bool found_self=false;
+    for(unsigned i=0;i<cp.latest.roster.members.size();++i){
+        if(!(cp.latest.roster.mask&(1u<<i)))continue;
+        const auto member=cp.latest.roster.members[i];
+        if(member==self){found_self=true;continue;}
+        const auto& peer=life_peers[i];
+        if(member!=checkpoint_member(peer)||time-peer.received>Player::rescue_fresh||
+           (peer.life.phase!=LifePhase::standing&&peer.life.phase!=LifePhase::down))return false;
+    }
+    return found_self;
 }
 static bool rollback_send(CP::Op op,unsigned peers){
     auto m=rollback.plan;
@@ -131,7 +142,8 @@ static bool rollback_receive(const ReceivedPacket& received,double time){
         return true;
     }
     if(received.peer||message.sender)return true;
-    if(message.op==CP::Op::wipe_prepare&&(r.stage==RollbackStage::idle||r.stage==RollbackStage::arrived)&&
+    if(message.op==CP::Op::wipe_prepare&&(r.stage==RollbackStage::idle||r.stage==RollbackStage::arrived||
+       (r.stage==RollbackStage::failed&&time>=r.deadline&&!r.draining))&&
        cp.stage==CheckpointStage::idle){
         auto latest=m;
         latest.rollback=0;
@@ -169,12 +181,13 @@ static void rollback_downed(double time){
         const auto generation=++r.down_generations[i];
         if(cp.session->down(cp.members[i],envelope.world,generation)!=qdcoop::Result::ok)continue;
         r.down_tokens[i]=life.token;
-        if(r.gate.on_downed(*cp.session,cp.coordinator,cp.members[i],generation)!=qdcoop::Result::ok)continue;
-        r.checkpoint=r.gate.checkpoint();
-        auto plan=cp.latest;
-        plan.rollback=new_life_token();
-        if(plan.rollback)rollback_prepare(plan,0,time);
+        if(r.gate.on_downed(*cp.session,cp.coordinator,cp.members[i],generation)==qdcoop::Result::ok)
+            r.checkpoint=r.gate.checkpoint();
     }
+    if(!r.checkpoint.sequence||!checkpoint_roster_ready(cp.latest.roster,2,time))return;
+    auto plan=cp.latest;
+    plan.rollback=new_life_token();
+    if(plan.rollback)rollback_prepare(plan,0,time);
 }
 static bool rollback_step(void* pawn,double time){
     auto& r=rollback;
@@ -195,6 +208,10 @@ static bool rollback_step(void* pawn,double time){
             r.acks=1;
         }else rollback_fail();
         r.next_send=0;
+    }
+    if(r.stage==RollbackStage::failed&&!r.draining&&time>=r.deadline){
+        r.stage=RollbackStage::idle;
+        return false;
     }
     if((r.stage==RollbackStage::prepared||r.stage==RollbackStage::committed)&&time>=r.deadline)rollback_fail();
     if(r.stage==RollbackStage::prepared&&host_role&&r.ready==r.plan.roster.mask&&

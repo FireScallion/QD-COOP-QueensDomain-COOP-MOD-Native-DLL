@@ -2,6 +2,7 @@
 #include "qdcoop/enemy_enrollment.hpp"
 #include "qdcoop/player_pose.hpp"
 #include "qdcoop/projectile_assets.hpp"
+#include "qdcoop/projectile_materials.hpp"
 #include <bit>
 #include <cmath>
 
@@ -45,6 +46,7 @@ struct Frame {
     std::uint16_t mesh_asset{},trail_asset{};
     std::array<Parameter,parameter_capacity> parameters{};
     bool trail_hidden{};
+    std::uint16_t mesh_material{};
     bool operator==(const Frame&) const=default;
 };
 inline unsigned parameter_count(const Frame& frame){
@@ -91,7 +93,8 @@ inline bool valid(const Frame& value){
     const bool enemy=enemy_source(value.profile),fx=effect(value.profile);
     if(enemy&&value.slot!=0)return false;
     if(value.phase==Phase::retired)return value.mesh==Transform{}&&value.trail==Transform{}&&
-        !value.trail_active&&!value.trail_hidden&&!value.mesh_asset&&!value.trail_asset&&value.velocity==std::array<float,3>{}&&
+        !value.trail_active&&!value.trail_hidden&&!value.mesh_asset&&!value.trail_asset&&!value.mesh_material&&
+        value.velocity==std::array<float,3>{}&&
         value.parameters==std::array<Parameter,parameter_capacity>{};
     const auto count=parameter_count(value);
     if(count&&!value.trail_asset)return false;
@@ -107,6 +110,7 @@ inline bool valid(const Frame& value){
     const auto trail_limit=particle(value.profile)?assets::particles.size():(enemy?assets::trails.size():assets::player_trails);
     if(value.mesh_asset>(enemy?assets::meshes.size():assets::player_meshes)||value.trail_asset>trail_limit||
        (!value.mesh_asset&&!has_trail_pose)||(has_trail_pose&&!value.trail_asset))return false;
+    if(value.mesh_material&&(!value.mesh_asset||value.mesh_material>assets::mesh_materials.size()))return false;
     if(fx&&
        (value.mesh_asset||value.mesh!=value.trail||value.velocity!=std::array<float,3>{}))return false;
     const auto transform=[](const Transform& pose){
@@ -149,8 +153,9 @@ inline bool encode(const E::Envelope& scope,const Frame& value,E::Packet& packet
     put(packet,56,value.sequence);
     put_transform(packet,64,value.mesh);
     for(unsigned i=0;i<3;++i)put(packet,104+4*i,value.velocity[i]);
-    const std::uint32_t trail_flags=(value.trail_active?1u:0u)|(value.trail_hidden?2u:0u);
-    put(packet,116,trail_flags);
+    const std::uint32_t visual_flags=(value.trail_active?1u:0u)|(value.trail_hidden?2u:0u)|
+        (static_cast<std::uint32_t>(value.mesh_material)<<8);
+    put(packet,116,visual_flags);
     put_transform(packet,120,value.trail);
     put(packet,160,value.slot);
     put(packet,164,value.mesh_asset);
@@ -177,10 +182,11 @@ inline bool decode(const E::Envelope& scope,const E::Packet& packet,Frame& out){
     value.sequence=get<std::uint64_t>(packet,56);
     value.mesh=get_transform(packet,64);
     for(unsigned i=0;i<3;++i)value.velocity[i]=get<float>(packet,104+4*i);
-    const auto trail_flags=get<std::uint32_t>(packet,116);
-    if(trail_flags>3)return false;
-    value.trail_active=(trail_flags&1u)!=0;
-    value.trail_hidden=(trail_flags&2u)!=0;
+    const auto visual_flags=get<std::uint32_t>(packet,116);
+    if(visual_flags&~0x00ffff03u)return false;
+    value.trail_active=(visual_flags&1u)!=0;
+    value.trail_hidden=(visual_flags&2u)!=0;
+    value.mesh_material=static_cast<std::uint16_t>(visual_flags>>8);
     value.trail=get_transform(packet,120);
     value.slot=get<std::uint32_t>(packet,160);
     value.mesh_asset=get<std::uint16_t>(packet,164);

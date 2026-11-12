@@ -6,6 +6,7 @@ ULONGLONG next_source{};
 bool source_queued{};
 bool source_opened_menu{},source_opened_inspect{},source_ui_verified{};
 UE::WeakKey source_inventory_menu{},source_inspect{},source_button{};
+bool source_owner(){return lan.role==(guest_source_mode?L"client":L"host");}
 
 Address source_method(Address object,std::string_view path){
     const auto expected=path.substr(path.rfind('.')+1);
@@ -87,7 +88,7 @@ void source_check_ui(){
     const bool open=modal&&source_bool(modal,"IsOpen");
     const bool attached=button&&ui.parent(button);
     const bool restored=method&&at<Address>(method,216)==image+0x11a7e40;
-    if(auto stream=_wfopen(file(L"host-source-close-state.txt").c_str(),L"wb")){
+    if(auto stream=_wfopen(file(lan.role+L"-source-close-state.txt").c_str(),L"wb")){
         std::fprintf(stream,"modal=%u open=%u button=%u attached=%u callback=%u\n",modal!=0,open,button!=0,attached,restored);
         std::fclose(stream);
     }
@@ -103,7 +104,7 @@ bool source_inventory(const SaveMap& items){
     if(!ui.get(herb))if(const auto item=ui.load_asset_path(source_herb))ui.remember(herb,item);
     const auto item=ui.get(herb);
     if(!item||!inventory(items,inventory_before))return false;
-    if(!lan.host)return expected_inventory();
+    if(!source_owner())return expected_inventory();
     auto selected=std::ranges::find(inventory_before,item,&InventoryEntry::item);
     if(selected==inventory_before.end()||selected->count<1){
         // The copied test save can lack herbs. Set its starting inventory
@@ -153,7 +154,7 @@ bool source_step(Address instance,const SaveMap& names,const SaveMap& items,unsi
         stage=1;
         mark(L"prepared");
     }
-    if(lan.host&&stage==1&&!source_queued&&all(L"prepared")&&time>=next_source){
+    if(source_owner()&&stage==1&&!source_queued&&all(L"prepared")&&time>=next_source){
         next_source=time+300;
         if(source_ui_mode){
             if(source_click_ui(instance,time)){
@@ -172,20 +173,21 @@ bool source_step(Address instance,const SaveMap& names,const SaveMap& items,unsi
             }
         }
     }
-    if(lan.host&&source_ui_mode&&source_queued&&!source_ui_verified)source_check_ui();
+    if(source_owner()&&source_ui_mode&&source_queued&&!source_ui_verified)source_check_ui();
     if(lan.host&&save_locks[0]&&time>=save_unlock_at){
         mark(L"save-unlocked");
         release_save_locks();
     }
-    if(!lan.host&&!seen(L"host-save-unlocked.txt")&&(actors||keys[0].index||source_record(names)))mark(L"save-premature");
+    if(save_retry_mode&&!lan.host&&!seen(L"host-save-unlocked.txt")&&(actors||keys[0].index||source_record(names)))
+        mark(L"save-premature");
     if(!keys[0].index&&!source_record(names))return false;
     if(lan.host&&save_locks[0]&&get(names,source_escrow)==1)mark(L"source-debit-before-publish");
     const auto ground=get(names,keys[0]);
     if(stage==1&&ground==0&&actors==1&&get(names,source_room)==1&&geometry(ui.get(visual))&&
-       (!lan.host||!source_ui_mode||source_ui_verified)){
+       (!source_owner()||!source_ui_mode||source_ui_verified)){
         std::vector<InventoryEntry> current;
-        if(!inventory(items,current)||current!=(lan.host?inventory_expected:inventory_before)||
-           (lan.host?get(names,source_escrow)!=1:get(names,source_escrow).has_value()))return false;
+        if(!inventory(items,current)||current!=(source_owner()?inventory_expected:inventory_before)||
+           (source_owner()?get(names,source_escrow)!=1:get(names,source_escrow).has_value()))return false;
         if(lan.host){
             const auto stream=_wfopen(file(L"placed-pickup-origin.bin").c_str(),L"wb");
             if(!stream)return false;
@@ -196,7 +198,8 @@ bool source_step(Address instance,const SaveMap& names,const SaveMap& items,unsi
         stage=2;
         mark(L"rendered");
     }
-    if(lan.role==L"client"&&stage==2&&ground==0&&!claimed&&all(L"rendered")&&click(instance,ui.get(visual),time)){
+    if(lan.role==(guest_source_mode?L"client2":L"client")&&stage==2&&ground==0&&!claimed&&
+       all(L"rendered")&&click(instance,ui.get(visual),time)){
         claimed=true;
         mark(L"attempted");
     }
@@ -206,9 +209,9 @@ bool source_step(Address instance,const SaveMap& names,const SaveMap& items,unsi
         const auto got=get(names,receipt);
         const bool won=!lan.host&&got==1;
         std::vector<InventoryEntry> current;
-        if(!inventory(items,current)||current!=(lan.host||won?inventory_expected:inventory_before)||
+        if(!inventory(items,current)||current!=(source_owner()||won?inventory_expected:inventory_before)||
            (won?got!=1:got.has_value())||get(names,source_room)!=1||
-           (lan.host?get(names,source_escrow)!=1:get(names,source_escrow).has_value()))return false;
+           (source_owner()?get(names,source_escrow)!=2:get(names,source_escrow).has_value()))return false;
         if(won)mark(L"winner");
         mark(L"retired");
         mark(L"clean");

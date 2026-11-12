@@ -17,6 +17,8 @@ static std::atomic<KillExec> boss_interact_original{};
 static void* volatile* boss_interact_cell;
 static std::uint64_t boss_interact_serial;
 static double boss_interact_next;
+static bool native_door_close_observer_needed();
+static void observe_native_door_close(void* context,void* frame);
 
 static bool boss_declares_interact(void* type){
     const auto function_type=api.weakget(&catalog_classes[catalog_function]);
@@ -88,6 +90,7 @@ static void boss_interact_queue(unsigned index,double time){
 static void boss_interact_observe(void* context,void* frame,void* result){
     const auto original=boss_interact_original.load(std::memory_order_acquire);
     if(context&&frame&&GetCurrentThreadId()==game_thread.load()){
+        observe_native_door_close(context,frame);
         const auto code=AnimU::field<const unsigned char*>(frame,32);
         const auto node=AnimU::field<void*>(frame,16);
         const auto method=std::ranges::find_if(boss_interact_methods,[&](const auto& entry){
@@ -242,7 +245,8 @@ static void native_boss_interact_step(double time){
         if(lease.generation&&(!active_peer_mask||entities[i].generation!=lease.generation||!entities[i].used||
            retirement_requested(i)||time-entities[i].received>.5))boss_interact_release(lease);
     }
-    if(boss_interact_cell&&std::ranges::none_of(boss_interact_leases,[](const auto& lease){return lease.generation!=0;}))
+    if(boss_interact_cell&&!native_door_close_observer_needed()&&
+       std::ranges::none_of(boss_interact_leases,[](const auto& lease){return lease.generation!=0;}))
         restore_damage_slot(&boss_interact_observe,boss_interact_original,boss_interact_cell);
     for(auto& pending:boss_interact_pending){
         if(!pending.message.serial)continue;
