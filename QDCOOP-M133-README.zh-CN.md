@@ -1,10 +1,10 @@
 # Queen’s Domain COOP 原生 DLL 版
 
-[English](QDCOOP-M131-README.md)
+[English](QDCOOP-M133-README.md)
 
 Queen’s Domain COOP 为原版单人游戏加入合作模式。你可以和朋友一起探索、挑战敌人和 Boss。**Steam 好友联机与局域网联机均支持 2–4 人，包含 1 名房主和最多 3 名客机。** 原生版由游戏进程内的 DLL 加载和运行。
 
-本文对应 **QD COOP M131**，适用于 Windows 64 位的 **Queen’s Domain Steam 正版 1.01.05（Build 26496428）**。联机成员请使用同一版本的原生版 Mod。
+本文对应 **QD COOP M133**，适用于 Windows 64 位的 **Queen’s Domain Steam 正版 1.01.05（Build 26496428）**。联机成员请使用同一版本的原生版 Mod。
 
 ## 安装与升级
 
