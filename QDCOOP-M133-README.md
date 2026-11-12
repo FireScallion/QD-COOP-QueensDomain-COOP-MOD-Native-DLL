@@ -1,10 +1,10 @@
 # Queen’s Domain COOP Native DLL Edition
 
-[简体中文](QDCOOP-M131-README.zh-CN.md)
+[简体中文](QDCOOP-M133-README.zh-CN.md)
 
 Queen’s Domain COOP adds co-op to Queen’s Domain. Explore the world, fight enemies, and take on bosses together. **Steam friends and LAN sessions both support 2–4 players, including one host and up to three guests.** The native edition runs inside the game process as a DLL and requires no UE4SS installation.
 
-This guide covers **QD COOP M131** for the **64-bit Windows Steam release of Queen’s Domain 1.01.05 (Build 26496428)**. Everyone in the session should install the same native mod version.
+This guide covers **QD COOP M133** for the **64-bit Windows Steam release of Queen’s Domain 1.01.05 (Build 26496428)**. Everyone in the session should install the same native mod version.
 
 ## Install or Upgrade
 
