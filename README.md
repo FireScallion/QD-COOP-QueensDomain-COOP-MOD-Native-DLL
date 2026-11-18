@@ -1,4 +1,4 @@
-# Queen’s Domain COOP Native DLL Edition
+# Queen’s Domain COOP Native DLL Edition  Deprecated
 
 [简体中文](QDCOOP-M131-README.zh-CN.md)
 
